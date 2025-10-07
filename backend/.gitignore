@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environments
+venv/
+.env/
+
+# Flask instance folder
+instance/
+
+# VSCode
+.vscode/
+
+# OS
+.DS_Store
