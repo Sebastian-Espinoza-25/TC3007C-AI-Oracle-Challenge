@@ -4,13 +4,27 @@
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  
+  background-color: #F3F0EB;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+@theme{
+  --font-family: 'Montserrat', ;
+  
+  --color-primary-500: #24217A;
+  --color-primary-400: #322ea9;
+
+  --color-secondary-500: #B70B33;
+  --color-secondary-400: #e90e41;
+
+  --color-terciary-500: #ABB0B8;
+  --color-terciary-400: #bbbfc3;
+
+  --color-neutral-500: #F3F0EB;
+  --color-neutral-400: #f5f3ee;
 }
