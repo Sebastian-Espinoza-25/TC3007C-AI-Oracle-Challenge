@@ -1,9 +1,9 @@
 import { useNavigate } from "react-router";
 
 /**
- * Estilos base para cada tipo de botón predefinido.
+ * Default Styles for button
  */
-const estilos = {
+const styles = {
   primary:
     "bg-primary-500 hover:bg-primary-600 text-white font-bold py-2 px-4 rounded cursor-pointer hover:scale-105",
   secondary:
@@ -17,18 +17,6 @@ const estilos = {
   normal: "",
 };
 
-/**
- * Componente reutilizable para renderizar un botón estilizado, con soporte para navegación o acción personalizada.
- *
- * @param {Object} props
- * @param {string|JSX.Element} props.text - text o contenido que se muestra dentro del botón.
- * @param {function} [props.onClick] - Función a ejecutar al hacer clic si no se especifica una ruta.
- * @param {string} [props.tipo="primario"] - Tipo de botón, que determina el estilo visual (primario, secundario, cancel, peligro, etc.).
- * @param {string} [props.extraClases=""] - Clases adicionales para extender o sobrescribir estilos.
- * @param {string} [props.ruta] - Ruta de navegación (usa react-router) a la que se redirige si se especifica.
- * @param {string} [props.type="button"] - Tipo del botón HTML (por defecto es "button").
- * @returns {JSX.Element} Botón estilizado con comportamiento dinámico.
- */
 const CustomButton = ({
     text = "Default button",
     style = "primary",
@@ -38,14 +26,17 @@ const CustomButton = ({
     route
 }) => {
   const navigate = useNavigate();
-  const clase = `${estilos[style] || estilos.primario} ${extraStyles}`;
+
+  const baseStyle = styles[style] !== undefined ? styles[style] : styles.primary;
+  
+  const clase = `${baseStyle} ${extraStyles}`;
 
   /**
-   * Maneja el clic para decidir si se navega o se ejecuta una función personalizada.
+   * Manage the click to decide if navigate or execute some function predetermination
    */
   const handleClick = (e) => {
     if (route) {
-      e.preventDefault(); // Previene que un botón con type="submit" recargue si es necesario
+      e.preventDefault(); // Prevents default behaviour
       navigate(route);
     } else if (onClick) {
       onClick(e);
