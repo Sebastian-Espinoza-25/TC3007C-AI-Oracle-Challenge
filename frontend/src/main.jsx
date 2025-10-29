@@ -5,18 +5,28 @@ import './index.css'
 
 // LAYOUTS
 import DefaultLayout from './layouts/DefaultLayout'
+import SimpleLayout from './layouts/SimpleLayout'
 
 // PAGES
 import Home from './pages/Home'
 import Login from './pages/Login'
+import SignUp from './pages/SignUp'
 
 const router = createBrowserRouter([
   {
-    path: "/",
-    element: <DefaultLayout/>,
+    path: "/", // Here we define default route
+    element: <DefaultLayout/>, // Here we render Default Layout with the navbar and sidebar repeated in each children page
     children: [
       {index: true, element: <Home/>},
-      {path: "/login", element: <Login/>}
+      
+    ]
+  },
+  {
+    path: "/auth",
+    element: <SimpleLayout/>,
+    children: [
+      { path: "login", element: <Login/> }, // If you want add a new route with this Layout only need to generate another children with a path and element
+      { path: "signup", element: <SignUp/> }
     ]
   }
 ])

@@ -1,0 +1,3 @@
+# Ignora cualquier archivo CSV en cualquier carpeta
+**/*.csv
+**/*.csv
