@@ -1,5 +1,5 @@
 import React from 'react';
-import SimpleNav from '../components/SimpleNav';
+import SimpleNav from '../components/UI/SimpleNav';
 import { Outlet } from 'react-router-dom';
 
 const SimpleLayout = () => {

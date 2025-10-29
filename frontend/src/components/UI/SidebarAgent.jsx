@@ -1,14 +1,13 @@
 import React from 'react';
 import { FiX, FiSend } from 'react-icons/fi';
 
-// Aceptamos 'isOpen' y 'onClose' como props
 const SidebarAgent = ({ isOpen, onClose }) => {
-    // Si no está abierto, no renderizamos nada (o podrías animarlo fuera de la pantalla)
+
     if (!isOpen) {
         return null;
     }
 
-    // Componentes de mensajes (iguales que antes)
+    // Message components
     const UserMessage = ({ text }) => (
         <div className="flex justify-end mb-4">
             <div className="bg-indigo-900 text-white rounded-lg p-3 max-w-xs md:max-w-md shadow-md">
@@ -38,10 +37,9 @@ const SidebarAgent = ({ isOpen, onClose }) => {
             {/* Header */}
             <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
                 <h1 className="text-xl font-semibold text-gray-800">Asistente AI</h1>
-                {/* Usamos la prop onClose aquí */}
                 <button 
                     onClick={onClose} 
-                    className="text-gray-500 hover:text-gray-700"
+                    className="text-gray-500 hover:text-gray-700 cursor-pointer"
                 >
                     <FiX size={24} />
                 </button>
