@@ -14,3 +14,9 @@ instance/
 
 # OS
 .DS_Store
+
+# .env
+.env
+
+# Wallet files
+Wallet_OracleChallenge/
