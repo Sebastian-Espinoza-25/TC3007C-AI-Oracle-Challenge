@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import Login from "./Login";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const mxPostalCodeRegex = /^\d{5}$/;
+const streetNumberRegex = /^\d+[A-Za-z0-9\-\/]*$/;
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -11,11 +13,12 @@ const SignUp = () => {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
+    age: "",
     email: "",
     password: "",
     confirmPassword: "",
-    age: "",
-    address: "",
+    street: "",
+    streetNumber: "",
     postalCode: "",
     acceptTerms: false,
   });
@@ -24,20 +27,26 @@ const SignUp = () => {
   const [showConfirmPwd, setShowConfirmPwd] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
-  const [openModal, setOpenModal] = useState(null); // 'terms' | 'privacy' | null
-  const [attempted, setAttempted] = useState(false); // <-- clave: mostrar errores solo tras intentar enviar
+  const [openModal, setOpenModal] = useState(null);
+  const [attempted, setAttempted] = useState(false);
 
   const onChange = (e) => {
     const { name, type, value, checked } = e.target;
     setFormData((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
   };
 
-  // Valida todo (todo es obligatorio)
   const getFieldErrors = () => {
     const errs = {};
-
     if (!formData.firstName.trim()) errs.firstName = "Campo obligatorio";
     if (!formData.lastName.trim()) errs.lastName = "Campo obligatorio";
+
+    // Edad (13–120)
+    if (!formData.age.trim()) errs.age = "Campo obligatorio";
+    else {
+      const ageNum = Number(formData.age);
+      if (!Number.isFinite(ageNum) || !/^\d+$/.test(formData.age)) errs.age = "Edad inválida";
+      else if (ageNum < 13 || ageNum > 120) errs.age = "Edad fuera de rango (13–120)";
+    }
 
     if (!formData.email.trim()) errs.email = "Campo obligatorio";
     else if (!emailRegex.test(formData.email)) errs.email = "Correo no válido";
@@ -47,13 +56,12 @@ const SignUp = () => {
     else if (formData.password !== formData.confirmPassword)
       errs.confirmPassword = "Las contraseñas no coinciden";
 
-    if (!formData.age.trim()) errs.age = "Campo obligatorio";
-    else if (!/^\d{1,3}$/.test(formData.age)) errs.age = "Edad inválida";
-
-    if (!formData.address.trim()) errs.address = "Campo obligatorio";
+    if (!formData.street.trim()) errs.street = "Campo obligatorio";
+    if (!formData.streetNumber.trim()) errs.streetNumber = "Campo obligatorio";
+    else if (!streetNumberRegex.test(formData.streetNumber)) errs.streetNumber = "Número de calle inválido";
 
     if (!formData.postalCode.trim()) errs.postalCode = "Campo obligatorio";
-    else if (!/^\d{4,7}$/.test(formData.postalCode)) errs.postalCode = "Código postal inválido";
+    else if (!mxPostalCodeRegex.test(formData.postalCode)) errs.postalCode = "Código postal inválido (5 dígitos)";
 
     if (!formData.acceptTerms) errs.acceptTerms = "Debes aceptar los términos";
 
@@ -66,18 +74,13 @@ const SignUp = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setServerError("");
-    setAttempted(true); // <-- activa la visualización de errores
-
+    setAttempted(true);
     if (!isValid) return;
 
     try {
       setSubmitting(true);
-      // Aquí iría tu llamada real a la API
-      // const res = await fetch("/api/signup", { ... });
-      // if (!res.ok) throw new Error("Error en el registro");
-
-      await new Promise((r) => setTimeout(r, 900)); // simulación
-      navigate("./login");
+      await new Promise((r) => setTimeout(r, 900));
+      navigate("/auth/login", { replace: true });
     } catch (err) {
       setServerError(err.message || "Ocurrió un problema. Intenta de nuevo");
     } finally {
@@ -103,24 +106,21 @@ const SignUp = () => {
           <form onSubmit={handleSubmit} noValidate>
             <p className="text-xs text-slate-500 mb-3">* Campos obligatorios</p>
 
-            {/* Nombre y Apellido */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Nombre, Apellido y Edad */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <Field label="Nombre *" error={attempted ? fieldErrors.firstName : ""}>
-                <input
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={onChange}
-                  className={inputCls}
-                  placeholder="Tu nombre"
-                />
+                <input name="firstName" value={formData.firstName} onChange={onChange} className={inputCls} />
               </Field>
               <Field label="Apellido *" error={attempted ? fieldErrors.lastName : ""}>
+                <input name="lastName" value={formData.lastName} onChange={onChange} className={inputCls} />
+              </Field>
+              <Field label="Edad *" error={attempted ? fieldErrors.age : ""}>
                 <input
-                  name="lastName"
-                  value={formData.lastName}
+                  name="age"
+                  value={formData.age}
                   onChange={onChange}
                   className={inputCls}
-                  placeholder="Tu apellido"
+                  inputMode="numeric"
                 />
               </Field>
             </div>
@@ -153,7 +153,6 @@ const SignUp = () => {
                     type="button"
                     onClick={() => setShowPwd((s) => !s)}
                     className="absolute inset-y-0 right-0 px-3 text-slate-500 hover:text-slate-700"
-                    aria-label={showPwd ? "Ocultar contraseña" : "Mostrar contraseña"}
                   >
                     {showPwd ? <FaEyeSlash className="h-5 w-5" /> : <FaEye className="h-5 w-5" />}
                   </button>
@@ -174,7 +173,6 @@ const SignUp = () => {
                     type="button"
                     onClick={() => setShowConfirmPwd((s) => !s)}
                     className="absolute inset-y-0 right-0 px-3 text-slate-500 hover:text-slate-700"
-                    aria-label={showConfirmPwd ? "Ocultar contraseña" : "Mostrar contraseña"}
                   >
                     {showConfirmPwd ? <FaEyeSlash className="h-5 w-5" /> : <FaEye className="h-5 w-5" />}
                   </button>
@@ -182,24 +180,18 @@ const SignUp = () => {
               </Field>
             </div>
 
-            {/* Edad, Dirección, CP */}
+            {/* Dirección */}
             <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-              <Field label="Edad *" error={attempted ? fieldErrors.age : ""}>
-                <input
-                  name="age"
-                  value={formData.age}
-                  onChange={onChange}
-                  className={inputCls}
-                  inputMode="numeric"
-                />
+              <Field label="Calle *" error={attempted ? fieldErrors.street : ""}>
+                <input name="street" value={formData.street} onChange={onChange} className={inputCls} />
               </Field>
-              <Field label="Dirección *" error={attempted ? fieldErrors.address : ""}>
+              <Field label="Número *" error={attempted ? fieldErrors.streetNumber : ""}>
                 <input
-                  name="address"
-                  value={formData.address}
+                  name="streetNumber"
+                  value={formData.streetNumber}
                   onChange={onChange}
                   className={inputCls}
-                  placeholder="Calle y número"
+                  placeholder="123 o 12A"
                 />
               </Field>
               <Field label="Código postal *" error={attempted ? fieldErrors.postalCode : ""}>
@@ -209,6 +201,7 @@ const SignUp = () => {
                   onChange={onChange}
                   className={inputCls}
                   inputMode="numeric"
+                  placeholder="00000"
                 />
               </Field>
             </div>
@@ -225,19 +218,11 @@ const SignUp = () => {
               />
               <label htmlFor="acceptTerms" className="text-sm text-slate-600">
                 <span className="font-medium">* Campo obligatorio:</span> Acepto los{" "}
-                <button
-                  type="button"
-                  className="underline underline-offset-2"
-                  onClick={() => setOpenModal("terms")}
-                >
+                <button type="button" className="underline underline-offset-2" onClick={() => setOpenModal("terms")}>
                   Términos y Condiciones
                 </button>{" "}
                 y{" "}
-                <button
-                  type="button"
-                  className="underline underline-offset-2"
-                  onClick={() => setOpenModal("privacy")}
-                >
+                <button type="button" className="underline underline-offset-2" onClick={() => setOpenModal("privacy")}>
                   Política de Privacidad
                 </button>.
               </label>
@@ -270,7 +255,6 @@ const SignUp = () => {
         </div>
       </div>
 
-      {/* Modales */}
       <Modal open={openModal === "terms"} onClose={() => setOpenModal(null)} title="Términos y Condiciones">
         <p className="text-sm text-slate-600 leading-relaxed">
           Aquí van tus términos. Puedes reemplazar este texto con los de tu negocio.
@@ -288,7 +272,6 @@ const SignUp = () => {
 
 export default SignUp;
 
-// ---- UI helpers ----
 const inputCls =
   "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-500/30 focus:border-slate-500";
 
