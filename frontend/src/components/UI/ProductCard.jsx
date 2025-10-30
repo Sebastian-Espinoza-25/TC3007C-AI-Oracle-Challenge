@@ -1,3 +1,4 @@
+// In /src/components/UI/ProductCard.jsx
 import React from 'react';
 import CustomButton from './CustomButton';
 import imagen from '../../assets/react.svg';
@@ -17,7 +18,9 @@ const ProductCard = ({
     const gradientId = `gradient-mask-${name.replace(/\s/g, '-')}`;
 
     return (
-        <div className='w-[300px] mx-auto rounded-xl overflow-hidden bg-white shadow-lg'>
+        // FIX 1: Replaced fixed 'w-[300px]' with flexible 'w-full' 
+        // and removed 'mx-auto' (not needed in a grid).
+        <div className='w-full rounded-xl overflow-hidden bg-white shadow-lg'>
 
             <div className='relative h-[250px] flex justify-center items-center p-8'>
                 <div className='absolute top-0 right-0 bg-red-600 text-white text-xl font-bold py-2 px-6 rounded-bl-xl z-10'>
@@ -53,7 +56,9 @@ const ProductCard = ({
                     <CustomButton
                         text={buttonText}
                         style={'normal'} 
-                        extraStyles='w-full cursor-pointer bg-dark-500 text-center py-4 text-xl bg-darl-500 text-white rounded-lg hover:opacity-90 transition duration-200'
+                        // FIX 2: Corrected typo 'bg-darl-500' to 'bg-dark-500' 
+                        // and removed the redundant 'bg-dark-500' before the typo.
+                        extraStyles='w-full cursor-pointer bg-dark-500 text-center py-4 text-xl text-white rounded-lg hover:opacity-90 transition duration-200'
                     />
                 </div>
             </div>
