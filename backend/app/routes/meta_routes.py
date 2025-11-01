@@ -23,3 +23,22 @@ def get_tables():
         return jsonify({"ok": True, **data}), 200
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
+    
+
+from app.services.db.metadata import get_table_rowcount
+
+@meta.get("/table_rows")
+def get_table_rows():
+    """
+    GET /meta/table_rows?table=CATALOG
+    """
+    table = request.args.get("table")
+    if not table:
+        return jsonify({"ok": False, "error": "Missing 'table' parameter"}), 400
+
+    try:
+        pool = current_app.config["DB_POOL"]
+        data = get_table_rowcount(pool, table_name=table)
+        return jsonify({"ok": True, **data}), 200
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
