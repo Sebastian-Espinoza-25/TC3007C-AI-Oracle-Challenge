@@ -32,3 +32,30 @@ def list_tables(pool, schema: str | None = None, include_views: bool = False) ->
                 views = [r[0] for r in cur.fetchall()]
 
     return {"tables": tables, "views": views if include_views else []}
+
+def get_table_rowcount(pool, table_name: str) -> dict:
+    """
+    Returns the row count for the specified table.
+    """
+    with pool.acquire() as conn:
+        with conn.cursor() as cur:
+            # Real count
+            cur.execute(f"SELECT COUNT(*) FROM {table_name}")
+            total_rows = cur.fetchone()[0]
+
+            # Estimated count from statistics
+            cur.execute("""
+                SELECT num_rows, last_analyzed
+                FROM user_tables
+                WHERE table_name = :tname
+            """, {"tname": table_name.upper()})
+            stats = cur.fetchone()
+            num_rows_est = stats[0] if stats else None
+            last_analyzed = str(stats[1]) if stats else None
+
+    return {
+        "table": table_name.upper(),
+        "count_actual": total_rows,
+        "count_estimated": num_rows_est,
+        "last_analyzed": last_analyzed
+    }
