@@ -3,6 +3,7 @@ import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import TermsModal from "../components/UI/TermsModal";
 import PrivacyModal from "../components/UI/PrivacyModal";
+import Spinner from "../components/UI/Spinner";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const mxPostalCodeRegex = /^\d{5}$/;
@@ -106,7 +107,7 @@ const SignUp = () => {
           <form onSubmit={handleSubmit} noValidate>
             <p className="text-xs text-slate-500 mb-3">* Campos obligatorios</p>
 
-            {/* Nombre, Apellido y Edad */}
+            {/* Name, Surename and Age*/}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <Field label="Nombre *" error={attempted ? fieldErrors.firstName : ""}>
                 <input name="firstName" value={formData.firstName} onChange={onChange} className={inputCls} />
@@ -119,7 +120,7 @@ const SignUp = () => {
               </Field>
             </div>
 
-            {/* Correo */}
+            {/* E-mail */}
             <Field label="Correo electrónico *" error={attempted ? fieldErrors.email : ""} className="mt-3">
               <input
                 type="email"
@@ -131,7 +132,7 @@ const SignUp = () => {
               />
             </Field>
 
-            {/* Contraseñas */}
+            {/* Password */}
             <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
               <Field label="Contraseña *" error={attempted ? fieldErrors.password : ""}>
                 <div className="relative">
@@ -178,7 +179,7 @@ const SignUp = () => {
               </Field>
             </div>
 
-            {/* Dirección */}
+            {/* Address */}
             <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
               <Field label="Calle *" error={attempted ? fieldErrors.street : ""}>
                 <input name="street" value={formData.street} onChange={onChange} className={inputCls} />
@@ -204,7 +205,7 @@ const SignUp = () => {
               </Field>
             </div>
 
-            {/* Aceptar términos */}
+            {/* Accept Terms and Privacy Conditions */}
             <div className="mt-3 flex items-start gap-2">
               <input
                 id="acceptTerms"
@@ -236,8 +237,8 @@ const SignUp = () => {
             >
               {submitting ? (
                 <>
-                  <Spinner className="mr-2 h-4 w-4" /> Creando cuenta...
-                </>
+                  <Spinner size={4} text="Creando cuenta..." />
+                  </>
               ) : (
                 "Crear cuenta"
               )}
@@ -253,7 +254,6 @@ const SignUp = () => {
         </div>
       </div>
 
-      {/* Modales separados */}
       <TermsModal open={openModal === "terms"} onClose={() => setOpenModal(null)} />
       <PrivacyModal open={openModal === "privacy"} onClose={() => setOpenModal(null)} />
     </div>
@@ -273,9 +273,3 @@ const Field = ({ label, error, className = "", children }) => (
   </div>
 );
 
-const Spinner = ({ className = "" }) => (
-  <svg className={`animate-spin ${className}`} viewBox="0 0 24 24" fill="none">
-    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-  </svg>
-);
