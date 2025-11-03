@@ -7,6 +7,7 @@ from .routes.main_routes import main
 from .routes.meta_routes import meta
 from .routes.auth_routes import auth_bp
 from .routes.catalog_routes import catalog_bp
+from .routes.cart_routes import cart_bp
 from .services.db.connection import create_pool
 
 def create_app():
@@ -32,6 +33,8 @@ def create_app():
     app.register_blueprint(meta)
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(catalog_bp, url_prefix="/api/catalog")
+    app.register_blueprint(cart_bp, url_prefix="/api/cart")
+
 
     # Base route
     @app.route("/")
@@ -52,6 +55,13 @@ def create_app():
                 "catalog": {
                     "list_catalog": "GET /api/catalog/?q=<query>&limit=<limit>&offset=<offset>",
                     "product_detail": "GET /api/catalog/<external_article_id>"    
+                },
+                "cart": {
+                    "get_cart": "GET /api/cart/",
+                    "add_item": "POST /api/cart/items",
+                    "update_item": "PATCH /api/cart/items/<external_article_id>",
+                    "remove_item": "DELETE /api/cart/items/<external_article_id>",
+                    "clear_cart": "DELETE /api/cart/"
                 }
             
         }
