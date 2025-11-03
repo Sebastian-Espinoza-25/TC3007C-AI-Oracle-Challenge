@@ -6,13 +6,18 @@ import './index.css'
 // LAYOUTS
 import DefaultLayout from './layouts/DefaultLayout'
 import SimpleLayout from './layouts/SimpleLayout'
+import CartLayout from './layouts/CartLayout'
 
 // PAGES
 import Home from './pages/Home'
 import Login from './pages/Login'
 import SignUp from './pages/SignUp'
+<<<<<<< HEAD
+import Cart from './pages/Cart'
+=======
 import Logout from './pages/Logout'
 import Atelier from './pages/Atelier'
+>>>>>>> origin/main
 
 const router = createBrowserRouter([
   {
@@ -21,6 +26,13 @@ const router = createBrowserRouter([
     children: [
       {index: true, element: <Home/>},
       
+    ]
+  },
+  {
+    path: "/cart",
+    element: <CartLayout/>,
+    children: [
+      {index: true, element: <Cart/>}
     ]
   },
   {
