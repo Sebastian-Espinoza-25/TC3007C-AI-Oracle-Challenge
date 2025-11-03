@@ -9,7 +9,7 @@ import { RiRobot2Line } from "react-icons/ri";
 const Navbar = ({ onToggleSidebar, isSidebarOpen }) => { 
     
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [isLogin, setLogin] = useState(true); // Set to true for demonstration
+    const [isLogin, setLogin] = useState(); // Set to true for demonstration
     
     const sidebarWidthClass = 'md:mr-96'; 
 
