@@ -1,7 +1,9 @@
 import React, { useState } from "react";
-import { FaEye, FaEyeSlash, FaTimes } from "react-icons/fa";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import Login from "./Login";
+import TermsModal from "../components/UI/TermsModal";
+import PrivacyModal from "../components/UI/PrivacyModal";
+import Spinner from "../components/UI/Spinner";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const mxPostalCodeRegex = /^\d{5}$/;
@@ -27,7 +29,7 @@ const SignUp = () => {
   const [showConfirmPwd, setShowConfirmPwd] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
-  const [openModal, setOpenModal] = useState(null);
+  const [openModal, setOpenModal] = useState(null); // 'terms' | 'privacy' | null
   const [attempted, setAttempted] = useState(false);
 
   const onChange = (e) => {
@@ -40,7 +42,6 @@ const SignUp = () => {
     if (!formData.firstName.trim()) errs.firstName = "Campo obligatorio";
     if (!formData.lastName.trim()) errs.lastName = "Campo obligatorio";
 
-    // Edad (13–120)
     if (!formData.age.trim()) errs.age = "Campo obligatorio";
     else {
       const ageNum = Number(formData.age);
@@ -106,7 +107,7 @@ const SignUp = () => {
           <form onSubmit={handleSubmit} noValidate>
             <p className="text-xs text-slate-500 mb-3">* Campos obligatorios</p>
 
-            {/* Nombre, Apellido y Edad */}
+            {/* Name, Surename and Age*/}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <Field label="Nombre *" error={attempted ? fieldErrors.firstName : ""}>
                 <input name="firstName" value={formData.firstName} onChange={onChange} className={inputCls} />
@@ -115,17 +116,11 @@ const SignUp = () => {
                 <input name="lastName" value={formData.lastName} onChange={onChange} className={inputCls} />
               </Field>
               <Field label="Edad *" error={attempted ? fieldErrors.age : ""}>
-                <input
-                  name="age"
-                  value={formData.age}
-                  onChange={onChange}
-                  className={inputCls}
-                  inputMode="numeric"
-                />
+                <input name="age" value={formData.age} onChange={onChange} className={inputCls} inputMode="numeric" />
               </Field>
             </div>
 
-            {/* Correo */}
+            {/* E-mail */}
             <Field label="Correo electrónico *" error={attempted ? fieldErrors.email : ""} className="mt-3">
               <input
                 type="email"
@@ -137,7 +132,7 @@ const SignUp = () => {
               />
             </Field>
 
-            {/* Contraseñas */}
+            {/* Password */}
             <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
               <Field label="Contraseña *" error={attempted ? fieldErrors.password : ""}>
                 <div className="relative">
@@ -148,11 +143,13 @@ const SignUp = () => {
                     onChange={onChange}
                     className={`${inputCls} pr-10`}
                     placeholder="••••••••"
+                    autoComplete="new-password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPwd((s) => !s)}
                     className="absolute inset-y-0 right-0 px-3 text-slate-500 hover:text-slate-700"
+                    aria-label={showPwd ? "Ocultar contraseña" : "Mostrar contraseña"}
                   >
                     {showPwd ? <FaEyeSlash className="h-5 w-5" /> : <FaEye className="h-5 w-5" />}
                   </button>
@@ -168,11 +165,13 @@ const SignUp = () => {
                     onChange={onChange}
                     className={`${inputCls} pr-10`}
                     placeholder="Repite la contraseña"
+                    autoComplete="new-password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPwd((s) => !s)}
                     className="absolute inset-y-0 right-0 px-3 text-slate-500 hover:text-slate-700"
+                    aria-label={showConfirmPwd ? "Ocultar contraseña" : "Mostrar contraseña"}
                   >
                     {showConfirmPwd ? <FaEyeSlash className="h-5 w-5" /> : <FaEye className="h-5 w-5" />}
                   </button>
@@ -180,7 +179,7 @@ const SignUp = () => {
               </Field>
             </div>
 
-            {/* Dirección */}
+            {/* Address */}
             <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
               <Field label="Calle *" error={attempted ? fieldErrors.street : ""}>
                 <input name="street" value={formData.street} onChange={onChange} className={inputCls} />
@@ -206,7 +205,7 @@ const SignUp = () => {
               </Field>
             </div>
 
-            {/* Aceptar términos */}
+            {/* Accept Terms and Privacy Conditions */}
             <div className="mt-3 flex items-start gap-2">
               <input
                 id="acceptTerms"
@@ -238,8 +237,8 @@ const SignUp = () => {
             >
               {submitting ? (
                 <>
-                  <Spinner className="mr-2 h-4 w-4" /> Creando cuenta...
-                </>
+                  <Spinner size={4} text="Creando cuenta..." />
+                  </>
               ) : (
                 "Crear cuenta"
               )}
@@ -247,7 +246,7 @@ const SignUp = () => {
 
             <p className="mt-4 text-center text-sm text-slate-600">
               ¿Ya tienes cuenta?{" "}
-              <a href="./login" className="font-medium text-slate-900 underline underline-offset-2">
+              <a href="/auth/login" className="font-medium text-slate-900 underline underline-offset-2">
                 Inicia sesión
               </a>
             </p>
@@ -255,17 +254,8 @@ const SignUp = () => {
         </div>
       </div>
 
-      <Modal open={openModal === "terms"} onClose={() => setOpenModal(null)} title="Términos y Condiciones">
-        <p className="text-sm text-slate-600 leading-relaxed">
-          Aquí van tus términos. Puedes reemplazar este texto con los de tu negocio.
-        </p>
-      </Modal>
-
-      <Modal open={openModal === "privacy"} onClose={() => setOpenModal(null)} title="Política de Privacidad">
-        <p className="text-sm text-slate-600 leading-relaxed">
-          Aquí va tu política de privacidad. Añade detalles sobre uso de datos y derechos del usuario.
-        </p>
-      </Modal>
+      <TermsModal open={openModal === "terms"} onClose={() => setOpenModal(null)} />
+      <PrivacyModal open={openModal === "privacy"} onClose={() => setOpenModal(null)} />
     </div>
   );
 };
@@ -283,35 +273,3 @@ const Field = ({ label, error, className = "", children }) => (
   </div>
 );
 
-const Modal = ({ open, onClose, title, children }) => {
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
-        <div className="flex items-start justify-between gap-4">
-          <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-          <button onClick={onClose} className="rounded-lg p-1 text-slate-500 hover:bg-slate-100" aria-label="Cerrar">
-            <FaTimes className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="mt-3">{children}</div>
-        <div className="mt-5 flex justify-end">
-          <button
-            onClick={onClose}
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800"
-          >
-            Cerrar
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const Spinner = ({ className = "" }) => (
-  <svg className={`animate-spin ${className}`} viewBox="0 0 24 24" fill="none">
-    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-  </svg>
-);
