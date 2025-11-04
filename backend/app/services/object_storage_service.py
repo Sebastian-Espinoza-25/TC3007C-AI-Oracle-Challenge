@@ -15,16 +15,16 @@ _obj = oci.object_storage.ObjectStorageClient(_config)
 
 def ping():
     """
-    Verifica:
-      1) namespace accesible,
-      2) bucket existe (get_bucket),
-      3) (opcional) lista 1 objeto si hay.
+    Verifies:
+      1) namespace accesible (get_namespace),
+      2) bucket exists (get_bucket),
+      3) lists 1 object.
     """
     ns = _obj.get_namespace().data
-    # get_bucket falla si no existe o no tienes permiso
+    # get bucket
     bucket = _obj.get_bucket(ns, OCI_BUCKET).data
 
-    # intentamos listar 1 objeto, por si ya hay algo
+    # list 1 object
     objs = _obj.list_objects(ns, OCI_BUCKET, limit=1).data.objects
     sample = objs[0].name if objs else None
 
@@ -48,11 +48,11 @@ def put_test_object():
     return {"object_name": name, "etag": getattr(resp, "etag", None)}
 
 def presigned_url(object_name: str, minutes: int = 10) -> str:
-    """Crea una URL firmada (PAR) de lectura para el objeto dado."""
+    """Generates a presigned URL (PAR) for the given object valid for `minutes`."""
     ns = _obj.get_namespace().data
     details = oci.object_storage.models.CreatePreauthenticatedRequestDetails(
         name=f"read-{uuid.uuid4()}",
-        access_type="ObjectRead",
+        access_type="ObjectRead",  # Object PAR
         time_expires=datetime.utcnow() + timedelta(minutes=minutes),
         object_name=object_name,
     )
@@ -61,5 +61,39 @@ def presigned_url(object_name: str, minutes: int = 10) -> str:
         bucket_name=OCI_BUCKET,
         create_preauthenticated_request_details=details,
     ).data
-    endpoint = f"https://objectstorage.{_config['region']}.oraclecloud.com"
-    return f"{endpoint}/n/{ns}/b/{OCI_BUCKET}/p/{par.id}"
+
+    # endpoint 
+    endpoint = _obj.base_client.endpoint.rstrip("/")
+    # full URL
+    return f"{endpoint}{par.access_uri}"
+
+
+# --- Helpers ---
+def key_from_external_id(external_id: str) -> str:
+    """Builds deterministic key: products/<primeros3>/<id>.jpg"""
+    return f"products/{external_id[:3]}/{external_id}.jpg"
+
+def object_exists(object_key: str) -> bool:
+    """HEAD to avoid death."""
+    ns = _obj.get_namespace().data
+    try:
+        _obj.head_object(ns, OCI_BUCKET, object_key)
+        return True
+    except oci.exceptions.ServiceError as e:
+        if getattr(e, "status", None) == 404:
+            return False
+        raise  
+
+def par_for_external_id(external_id: str, minutes: int = 10, verify: bool = True) -> str | None:
+    """Generates PAR for id If verify and not exists, returns None."""
+    key = key_from_external_id(external_id)
+    if verify and not object_exists(key):
+        return None
+    return presigned_url(key, minutes)
+
+def par_for_external_ids(ids: list[str], minutes: int = 10, verify: bool = True) -> dict[str, str | None]:
+    """Simple batch for multiple ids."""
+    out: dict[str, str | None] = {}
+    for eid in ids:
+        out[eid] = par_for_external_id(eid, minutes=minutes, verify=verify)
+    return out
