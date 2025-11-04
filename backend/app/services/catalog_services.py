@@ -19,7 +19,7 @@ def _coerce(value):
     return value
 
 def _dict(cur, row) -> Dict:
-    cols = [d[0] for d in cur.description]
+    cols = [d[0].lower() for d in cur.description]
     out = {}
     for k, v in zip(cols, row):
         out[k] = _coerce(v)
