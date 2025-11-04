@@ -14,13 +14,13 @@ const Atelier = () => {
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
 
-  // 🕓 timestamp
+  //timestamp
   const getTimestamp = () => {
     const now = new Date();
     return `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
   };
 
-  // 📩 Auto-scroll
+  //Auto-scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [currentConv.messages]);
@@ -56,7 +56,7 @@ const Atelier = () => {
     setInput("");
   };
 
-  // 📸 Subir imagen
+  //Image upload
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -85,18 +85,18 @@ const Atelier = () => {
     }
   };
 
-  // 🧩 Nueva conversación
+  //New conversation
   const newConversation = () => {
     setCurrentConv({ id: Date.now(), messages: [] });
   };
 
   return (
     <div className="h-screen flex flex-col bg-[#F7F8FC] overflow-hidden">
-      {/* 🔝 Header fijo */}
+      {/*Fixed header */}
       <div className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-10 py-4 bg-white shadow-sm border-b border-gray-100">
         <div className="flex-1 flex justify-center items-center gap-3">
           <img src={logo} alt="Atelier Logo" className="h-10 w-auto" />
-          <h1 className="text-2xl font-bold text-[#1B1B5E]">Allure</h1>
+          <h1 className="text-2xl font-bold text-[#1B1B5E]">ATELIER</h1>
         </div>
         <div className="absolute right-10 flex items-center gap-6">
           <button
@@ -118,9 +118,9 @@ const Atelier = () => {
         </div>
       </div>
 
-      {/* 💬 Cuerpo general */}
+      {/*General body */}
       <div className="flex flex-1 overflow-hidden relative mt-20">
-        {/* 📜 Sidebar (historial) */}
+        {/* Sidebar with previous conversations */}
         <div
           className={`bg-white border-r border-gray-200 p-5 overflow-y-auto transition-all duration-300 ${
             sidebarOpen ? "w-64" : "w-0 p-0"
@@ -165,7 +165,7 @@ const Atelier = () => {
           )}
         </div>
 
-        {/* 🔘 Toggle sidebar */}
+        {/* Toggle sidebar */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white border border-gray-200 rounded-full shadow-md px-2 py-1 text-gray-500 hover:text-primary-600 transition z-10"
@@ -173,13 +173,13 @@ const Atelier = () => {
           {sidebarOpen ? "◀" : "▶"}
         </button>
 
-        {/* 💬 Área principal */}
+        {/*Main area*/}
         <div className="flex-1 flex flex-col h-full">
-          {/* 📩 Zona de mensajes */}
+          {/*Messages */}
           <div className="flex-1 overflow-y-auto p-6 space-y-3">
             {currentConv.messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-700">
-                {/* 🪄 Cartas iniciales */}
+                {/*Initial messages */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-3xl mb-10">
                   <div
                     onClick={() =>
@@ -208,17 +208,17 @@ const Atelier = () => {
                     <div className="text-3xl">📷</div>
                     <div>
                       <h3 className="text-base font-semibold text-gray-800 mb-1">
-                        Analiza tu look
+                        Encuentra tu estilo
                       </h3>
                       <p className="text-sm text-gray-600">
-                        Sube una imagen o cuéntame sobre tu estilo actual y te
-                        ayudaré a mejorarlo.
+                        Sube una imagen de tu prenda favorita y te
+                        ayudaré a encontrar looks complementarios.
                       </p>
                     </div>
                   </div>
                 </div>
 
-                {/* 👋 Texto de bienvenida */}
+                {/*Welcome text */}
                 <h2 className="text-3xl font-semibold mb-3">
                   Hola, ¿cómo puedo ayudarte hoy?
                 </h2>
@@ -249,7 +249,7 @@ const Atelier = () => {
             <div ref={bottomRef} />
           </div>
 
-          {/* 📝 Input */}
+          {/*Input */}
           <form
             onSubmit={handleSend}
             className="flex items-center bg-[#E9EBF4] rounded-full p-3 px-5 shadow-sm m-5"

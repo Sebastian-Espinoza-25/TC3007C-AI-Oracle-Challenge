@@ -12,12 +12,10 @@ import CartLayout from './layouts/CartLayout'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import SignUp from './pages/SignUp'
-<<<<<<< HEAD
 import Cart from './pages/Cart'
-=======
 import Logout from './pages/Logout'
 import Atelier from './pages/Atelier'
->>>>>>> origin/main
+
 
 const router = createBrowserRouter([
   {
@@ -36,13 +34,16 @@ const router = createBrowserRouter([
     ]
   },
   {
+    path: "/atelier",
+    element: <Atelier/>,
+  },
+  {
     path: "/auth",
     element: <SimpleLayout/>,
     children: [
       { path: "login", element: <Login/> }, // If you want add a new route with this Layout only need to generate another children with a path and element
       { path: "signup", element: <SignUp/> },
       {path: "logout", element: <Logout/>}, 
-      {path: "atelier", element: <Atelier/>}
     ]
   }
 ])
