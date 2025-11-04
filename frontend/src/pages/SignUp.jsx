@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { FaEye, FaEyeSlash, FaTimes } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import Login from "./Login";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const mxPostalCodeRegex = /^\d{5}$/;
