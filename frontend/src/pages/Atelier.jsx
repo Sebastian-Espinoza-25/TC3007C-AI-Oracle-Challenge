@@ -14,7 +14,7 @@ const Atelier = () => {
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
 
-  //timestamp
+  // timestamp
   const getTimestamp = () => {
     const now = new Date();
     return `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
@@ -25,7 +25,7 @@ const Atelier = () => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [currentConv.messages]);
 
-  // 📨 Enviar texto
+  // Send text
   const handleSend = (e) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -56,7 +56,7 @@ const Atelier = () => {
     setInput("");
   };
 
-  //Image upload
+  //Upload image
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -92,7 +92,7 @@ const Atelier = () => {
 
   return (
     <div className="h-screen flex flex-col bg-[#F7F8FC] overflow-hidden">
-      {/*Fixed header */}
+      {/*Fixed header*/}
       <div className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-10 py-4 bg-white shadow-sm border-b border-gray-100">
         <div className="flex-1 flex justify-center items-center gap-3">
           <img src={logo} alt="Atelier Logo" className="h-10 w-auto" />
@@ -118,7 +118,7 @@ const Atelier = () => {
         </div>
       </div>
 
-      {/*General body */}
+      {/* General body */}
       <div className="flex flex-1 overflow-hidden relative mt-20">
         {/* Sidebar with previous conversations */}
         <div
@@ -165,7 +165,7 @@ const Atelier = () => {
           )}
         </div>
 
-        {/* Toggle sidebar */}
+        {/*Toggle sidebar */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white border border-gray-200 rounded-full shadow-md px-2 py-1 text-gray-500 hover:text-primary-600 transition z-10"
@@ -173,13 +173,13 @@ const Atelier = () => {
           {sidebarOpen ? "◀" : "▶"}
         </button>
 
-        {/*Main area*/}
+        {/*Main area */}
         <div className="flex-1 flex flex-col h-full">
           {/*Messages */}
           <div className="flex-1 overflow-y-auto p-6 space-y-3">
             {currentConv.messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-700">
-                {/*Initial messages */}
+                {/* Initial cards with options of what Atelier can do */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-3xl mb-10">
                   <div
                     onClick={() =>
@@ -211,14 +211,13 @@ const Atelier = () => {
                         Encuentra tu estilo
                       </h3>
                       <p className="text-sm text-gray-600">
-                        Sube una imagen de tu prenda favorita y te
-                        ayudaré a encontrar looks complementarios.
+                        ube una foto de tu camisa favorita, y te muestro posibles accesorios para combinar.
                       </p>
                     </div>
                   </div>
                 </div>
 
-                {/*Welcome text */}
+                {/*Welcome text*/}
                 <h2 className="text-3xl font-semibold mb-3">
                   Hola, ¿cómo puedo ayudarte hoy?
                 </h2>

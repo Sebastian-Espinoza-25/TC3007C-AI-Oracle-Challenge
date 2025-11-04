@@ -6,7 +6,7 @@ from datetime import date, datetime
 
 # Helper functions 
 def _coerce(v):
-    """Normaliza tipos especiales (LOB, fechas)"""
+    """Normalizes data types for JSON serialization"""
     if isinstance(v, oracledb.LOB):
         data = v.read()
         try:
@@ -20,7 +20,7 @@ def _coerce(v):
 
 
 def _dict(cur, row) -> Dict:
-    """Convierte un registro en dict usando los nombres de columnas"""
+    """Converts a DB row to a dictionary with column names as keys"""
     cols = [d[0] for d in cur.description]
     return {k: _coerce(v) for k, v in zip(cols, row)}
 
@@ -28,7 +28,7 @@ def _dict(cur, row) -> Dict:
 # Core cart logic 
 
 def _get_or_create_open_cart(conn, user_id: int) -> int:
-    """Obtiene o crea un carrito con status 'OPEN' para el usuario"""
+    """Obtains or creates an OPEN cart for the user"""
     with conn.cursor() as cur:
         # Search for existing OPEN cart
         cur.execute("""
@@ -60,7 +60,7 @@ def _get_or_create_open_cart(conn, user_id: int) -> int:
 
 # Recalculate cart total
 def _recalc_cart_total(conn, cart_id: int):
-    """Recalcula el total del carrito"""
+    """Recalculates the total price of the cart"""
     with conn.cursor() as cur:
         cur.execute("""
             UPDATE carts c
@@ -74,7 +74,7 @@ def _recalc_cart_total(conn, cart_id: int):
 
 # Get price and stock of an article
 def _get_price_and_stock(conn, article_id: str) -> Optional[Dict]:
-    """Obtiene precio y stock de un artículo"""
+    """Obtains price and stock for a given article_id"""
     with conn.cursor() as cur:
         cur.execute("""
             SELECT price, stock, prod_name
@@ -91,7 +91,7 @@ def _get_price_and_stock(conn, article_id: str) -> Optional[Dict]:
 
 # Get current cart
 def get_cart(pool, user_id: int) -> Dict:
-    """Devuelve el carrito actual del usuario (crea si no existe)"""
+    """Obtains the current cart for the user"""
     with pool.acquire() as conn:
         cart_id = _get_or_create_open_cart(conn, user_id)
         with conn.cursor() as cur:
@@ -160,7 +160,7 @@ def add_item(pool, user_id: int, article_id: str, qty: int) -> Dict:
 
 # Update item quantity in cart
 def update_item(pool, user_id: int, article_id: str, qty: int) -> Dict:
-    """Actualiza cantidad de un ítem o lo elimina si qty <= 0"""
+    """Updates the quantity of an item in the cart"""
     with pool.acquire() as conn:
         conn.autocommit = False
         try:
@@ -198,7 +198,7 @@ def update_item(pool, user_id: int, article_id: str, qty: int) -> Dict:
 
 # Remove item from cart
 def remove_item(pool, user_id: int, article_id: str) -> Dict:
-    """Elimina un ítem del carrito"""
+    """Removes an item from the cart"""
     with pool.acquire() as conn:
         conn.autocommit = False
         try:
@@ -220,7 +220,7 @@ def remove_item(pool, user_id: int, article_id: str) -> Dict:
 
 # Clear the cart
 def clear_cart(pool, user_id: int) -> Dict:
-    """Vacía el carrito completo"""
+    """Empties all items from the cart"""
     with pool.acquire() as conn:
         conn.autocommit = False
         try:
