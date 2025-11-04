@@ -6,11 +6,16 @@ import './index.css'
 // LAYOUTS
 import DefaultLayout from './layouts/DefaultLayout'
 import SimpleLayout from './layouts/SimpleLayout'
+import CartLayout from './layouts/CartLayout'
 
 // PAGES
 import Home from './pages/Home'
 import Login from './pages/Login'
 import SignUp from './pages/SignUp'
+import Cart from './pages/Cart'
+import Logout from './pages/Logout'
+import Atelier from './pages/Atelier'
+
 
 const router = createBrowserRouter([
   {
@@ -22,11 +27,20 @@ const router = createBrowserRouter([
     ]
   },
   {
+    path: "/cart",
+    element: <CartLayout/>,
+    children: [
+      {index: true, element: <Cart/>}
+    ]
+  },
+  {
     path: "/auth",
     element: <SimpleLayout/>,
     children: [
       { path: "login", element: <Login/> }, // If you want add a new route with this Layout only need to generate another children with a path and element
-      { path: "signup", element: <SignUp/> }
+      { path: "signup", element: <SignUp/> },
+      {path: "logout", element: <Logout/>}, 
+      {path: "atelier", element: <Atelier/>}
     ]
   }
 ])
