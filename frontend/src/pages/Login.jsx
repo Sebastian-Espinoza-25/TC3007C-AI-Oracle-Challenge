@@ -6,9 +6,33 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = (e) => {
+  const API_URL=import.meta.env.VITE_API_URL;
+
+  const handleLogin = async(e) => {
     e.preventDefault();
-    console.log("Intento de login con:", email, password);
+    try{
+      const response= await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({email, password}),
+      });
+
+      if(!response.ok){
+        throw new Error('Error en la autenticación');
+      }
+
+      const data = await response.json();
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+
+      // Redirect to home page after successful login
+      window.location.href = '/';
+    } catch (error){
+      console.error('Error during login:', error);
+      alert('Error al iniciar sesión. Por favor, verifica tus credenciales e intenta de nuevo.');
+    }
   };
 
   return (
