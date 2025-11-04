@@ -5,6 +5,7 @@ from datetime import timedelta
 from .config import Config
 from .routes.main_routes import main
 from .routes.meta_routes import meta
+from .routes.object_storage_routes import storage_bp
 from .routes.auth_routes import auth_bp
 from .routes.catalog_routes import catalog_bp
 from .routes.cart_routes import cart_bp
@@ -31,9 +32,11 @@ def create_app():
     # Blueprints 
     app.register_blueprint(main)
     app.register_blueprint(meta)
+    app.register_blueprint(storage_bp, url_prefix="/api/storage")
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(catalog_bp, url_prefix="/api/catalog")
     app.register_blueprint(cart_bp, url_prefix="/api/cart")
+
 
 
     # Base route
