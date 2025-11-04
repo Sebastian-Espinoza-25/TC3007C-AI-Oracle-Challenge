@@ -12,12 +12,10 @@ import CartLayout from './layouts/CartLayout'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import SignUp from './pages/SignUp'
-<<<<<<< HEAD
 import Cart from './pages/Cart'
-=======
 import Logout from './pages/Logout'
 import Atelier from './pages/Atelier'
->>>>>>> origin/main
+
 
 const router = createBrowserRouter([
   {
