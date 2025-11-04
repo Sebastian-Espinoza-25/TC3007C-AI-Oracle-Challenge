@@ -354,3 +354,93 @@ class ClusterRecommender:
         return out.sort_values("__sim__", ascending=False).head(k)[
             [c for c in cols if c in out.columns]
         ]
+
+
+
+
+    def recommend_cart_v2(
+        self,
+        article_ids,
+        k: int = 10,
+        mode: str = "max",
+        dentro_cluster: bool = True,
+        include_seed_sims: bool = False
+    ) -> pd.DataFrame:
+        """
+        Recomendaciones para múltiples anclas.
+        Añade:
+        - best_seed_idx: índice (0..m-1) de la ancla que define el score
+        - best_seed_id:  article_id de esa ancla
+        - (opcional) sim_seed{j}: similitud coseno con cada ancla
+
+        mode:
+        - "max": score = max_j cos(c, q_j); best_seed = argmax
+        - "avg": score = cos(c, mean_j q_j); best_seed = argmax_j cos(c, q_j) (informativo)
+        - "min": score = min_j cos(c, q_j); best_seed = argmin (cuello de botella)
+        """
+        self._ensure_fitted()
+
+        # Índices de anclas válidas en el modelo
+        idxs = [self._article_index.get(str(a)) for a in article_ids]
+        idxs = [i for i in idxs if i is not None]
+        if not idxs:
+            raise ValueError("IDs no encontrados.")
+
+        # Candidatos: unión de clústeres de las anclas, o todo el catálogo
+        if dentro_cluster:
+            cand_idx = np.where(np.isin(self._labels_, np.unique(self._labels_[idxs])))[0]
+        else:
+            cand_idx = np.arange(self._X_reduced.shape[0])
+
+        # Matrices de embedding
+        C = self._X_reduced[cand_idx]     # (m, d) candidatos
+        Q = self._X_reduced[idxs]         # (r, d) anclas
+
+        # Similitudes por ancla
+        S = cosine_similarity(C, Q)       # (m, r)
+
+        m = mode.lower().strip()
+        if m == "max":
+            j_star = S.argmax(axis=1)                         # ancla ganadora
+            sims   = S[np.arange(S.shape[0]), j_star]
+        elif m == "avg":
+            q_bar = Q.mean(axis=0, keepdims=True)            # centroide
+            sims  = cosine_similarity(C, q_bar).ravel()
+            j_star = S.argmax(axis=1)                        # ancla más cercana (informativo)
+        elif m == "min":
+            j_star = S.argmin(axis=1)                        # ancla cuello de botella
+            sims   = S[np.arange(S.shape[0]), j_star]
+        else:
+            raise ValueError("mode debe ser 'max' | 'avg' | 'min'")
+
+        # Armar DataFrame de salida
+        out = self._df.iloc[cand_idx].copy()
+        out["__sim__"] = sims
+        out["best_seed_idx"] = j_star
+        out["best_seed_id"]  = [str(article_ids[j]) for j in j_star]
+
+        if include_seed_sims:
+            for j in range(S.shape[1]):
+                out[f"sim_seed{j}"] = S[:, j]
+
+        # Excluir anclas del resultado
+        in_cart_ids = set(map(str, article_ids))
+        out = out[~out["article_id"].astype(str).isin(in_cart_ids)]
+
+        # Ordenar y limitar
+        out = out.sort_values("__sim__", ascending=False).head(k)
+
+        # Columnas sugeridas (se filtran por existencia)
+        cols_base = [
+            "article_id","product_code","prod_name","garment_group_name",
+            "section_name","index_name","perceived_colour_master_name",
+            "graphical_appearance_name","__sim__","best_seed_idx","best_seed_id"
+        ]
+        cols = [c for c in cols_base if c in out.columns]
+
+        # Añade sims por ancla si se pidió
+        if include_seed_sims:
+            seed_cols = [c for c in out.columns if c.startswith("sim_seed")]
+            cols += seed_cols
+
+        return out[cols]
