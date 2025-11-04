@@ -11,7 +11,7 @@ from app.services.payments_services import (
 
 payments_bp = Blueprint("payment_bp", __name__, url_prefix="/payment")
 
-# Crear un Payment Intent
+# Create a Payment Intent
 @payments_bp.post("/intent")
 @jwt_required()
 def create_intent():
@@ -19,7 +19,7 @@ def create_intent():
     user_id = get_jwt_identity()
     pool = current_app.config["DB_POOL"]
 
-    # Validar campo obligatorio
+    # Validate required field
     if "amount" not in data:
         return jsonify({"error": "Missing amount field"}), 400
 
@@ -27,7 +27,7 @@ def create_intent():
     return jsonify({"client_secret": client_secret}), 201
 
 
-# Webhook de Stripe
+# Webhook Stripe
 @payments_bp.post("/webhook")
 def webhook():
     payload = request.data
@@ -41,7 +41,7 @@ def webhook():
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
-    # Confirmar pago exitoso
+    # Confirm successful payment
     if event["type"] == "payment_intent.succeeded":
         pool = current_app.config["DB_POOL"]
         confirm_payment(pool, event["data"]["object"]["id"], event)
@@ -49,7 +49,7 @@ def webhook():
     return jsonify({"received": True}), 200
 
 
-# Obtener métodos de pago guardados
+# Get saved payment methods
 @payments_bp.get("/methods")
 @jwt_required()
 def get_methods():
@@ -59,7 +59,7 @@ def get_methods():
     return jsonify(methods), 200
 
 
-# Agregar un nuevo método de pago
+# Add a new payment method
 @payments_bp.post("/methods")
 @jwt_required()
 def add_method():
@@ -76,7 +76,7 @@ def add_method():
     return jsonify({"message": "Payment method added successfully."}), 201
 
 
-# Obtener facturas del usuario
+# Get user invoices
 @payments_bp.get("/invoices")
 @jwt_required()
 def invoices():
