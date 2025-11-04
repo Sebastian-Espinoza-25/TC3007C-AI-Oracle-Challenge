@@ -12,6 +12,8 @@ const streetNumberRegex = /^\d+[A-Za-z0-9\-\/]*$/;
 const SignUp = () => {
   const navigate = useNavigate();
 
+  const API_URL = import.meta.env.VITE_API_URL
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -78,13 +80,33 @@ const SignUp = () => {
     setAttempted(true);
     if (!isValid) return;
 
+    setSubmitting(true);
     try {
-      setSubmitting(true);
-      await new Promise((r) => setTimeout(r, 900));
-      navigate("/auth/login", { replace: true });
+      const response = await fetch(`${API_URL}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          age: Number(formData.age),
+          email: formData.email.trim(),
+          password: formData.password,
+          street: formData.street.trim(),
+          streetNumber: formData.streetNumber.trim(),
+          postalCode: formData.postalCode.trim(),
+        }),
+      });
+
+      console.log("Response: ", response);
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Error en el servidor");
+      }
+
+      // Success
+      navigate("/auth/login", { replace: true, state: { fromSignUp: true } });
     } catch (err) {
-      setServerError(err.message || "Ocurrió un problema. Intenta de nuevo");
-    } finally {
+      setServerError(err.message);
       setSubmitting(false);
     }
   };
