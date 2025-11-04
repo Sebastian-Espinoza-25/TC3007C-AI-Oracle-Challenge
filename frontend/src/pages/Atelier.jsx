@@ -96,7 +96,7 @@ const Atelier = () => {
       <div className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-10 py-4 bg-white shadow-sm border-b border-gray-100">
         <div className="flex-1 flex justify-center items-center gap-3">
           <img src={logo} alt="Atelier Logo" className="h-10 w-auto" />
-          <h1 className="text-2xl font-bold text-[#1B1B5E]">Allure</h1>
+          <h1 className="text-2xl font-bold text-[#1B1B5E]">ATELIER</h1>
         </div>
         <div className="absolute right-10 flex items-center gap-6">
           <button
