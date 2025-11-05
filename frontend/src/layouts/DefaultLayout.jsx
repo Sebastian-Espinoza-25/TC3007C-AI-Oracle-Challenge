@@ -7,7 +7,7 @@ import Footer from '../components/UI/Footer';
 
 const DefaultLayout = () => {
     // This state control the sidebar visibility
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const sidebarWidthClass = 'md:mr-96';
     
     // Toggle for open/close
@@ -30,9 +30,10 @@ const DefaultLayout = () => {
                 }`}
             >
                 {/* 3. The inner content wrapper where routing occurs. 
-                     We remove h-full and overflow-y-auto from <main> and keep the padding.
+                     ACTION: Removed 'p-4' (padding) to allow content to fill the space.
+                     Kept 'mt-16' (margin-top) to ensure content is below the Navbar.
                 */}
-                <div className="mt-16 p-4"> 
+                <div className="mt-16"> 
                     <Outlet />
                 </div>
             </main>
