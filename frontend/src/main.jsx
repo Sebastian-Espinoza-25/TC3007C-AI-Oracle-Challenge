@@ -13,6 +13,7 @@ import SignUp from './pages/SignUp'
 import Cart from './pages/Cart'
 import Logout from './pages/Logout'
 import Atelier from './pages/Atelier'
+import ProductDetail from './pages/ProductDetail'
 
 
 const router = createBrowserRouter([
@@ -22,13 +23,16 @@ const router = createBrowserRouter([
     children: [
       {index: true, element: <Home/>},
       {path: "cart", element: <Cart/>},
+      {path: "detail/:product", element: <ProductDetail/>},
       {path: "auth/signup", element: <SignUp/>},
       {path: "auth/logout", element: <Logout/>},
       {path: "auth/login", element: <Login/>},
-      
     ]
   },
-  {path: "/atelier", element: <Atelier/> },
+  {
+    path: "/atelier",
+    element: <Atelier/>,
+  },
 ])
 
 createRoot(document.getElementById('root')).render(

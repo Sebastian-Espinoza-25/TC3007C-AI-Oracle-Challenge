@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 
-// Importamos Link de react-router-dom para la navegación interna
+// Import React Router components for navigation
 import { useLocation, Link } from 'react-router-dom';
 
 import CustomButton from './CustomButton';
 
+// Icon Imports
 import { AiOutlineHome } from "react-icons/ai";
 import { MdOutlineShoppingCart } from "react-icons/md";
 import { RiAccountCircleLine, RiMenuLine, RiCloseLine, RiSearchLine, RiLogoutBoxLine } from "react-icons/ri"; 
@@ -21,15 +22,16 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
     const isCartPage = currentPath.startsWith('/cart');
     
     const [isMenuOpen, setIsMenuOpen] = useState(false); // Default to closed
-    const [isLogin, setLogin] = useState(true); 
+    const [isLogin, setLogin] = useState(true); // Set to 'true' or 'false' for demonstration/testing
+    
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
     
-    // Nueva variable: True si el usuario NO está logueado Y NO estamos en una página /auth
+    // Logic to determine if LogOut buttons should use the alternative layout for the AgentButton
     const showAuthButtons = !isLogin && !isAuthPage;
 
-    // Lógica para impedir que el sidebar se abra en rutas /auth
-    const effectiveIsSidebarOpen = isAuthPage ? false : isSidebarOpen;
-
+    // Removed effectiveIsSidebarOpen. Now using isSidebarOpen directly from props.
+    // NOTE: The initial state of isSidebarOpen must be managed by the parent component (set to false initially).
+    
     const sidebarWidthClass = 'md:mr-96'; 
 
     const navbarContainerClasses = `
@@ -40,20 +42,17 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
 
     // --- Sub-components  ---
     const AgentButton = () => {
-        // Lógica: Si se muestran los botones de Iniciar Sesión/Registrarse (showAuthButtons es true),
-        // usamos 'flex flex-row' (en lugar de 'flex flex-col')
+        // Class changes based on whether LoggedOut buttons are visible
         const flexClasses = showAuthButtons 
-            ? 'flex items-center' // Muestra el ícono y texto en fila (comportamiento de botón estándar)
-            : 'flex flex-col items-center justify-center'; // Muestra el ícono sobre el texto (comportamiento de ícono de navbar)
+            ? 'flex items-center' // Horizontal layout when LogOut buttons are shown
+            : 'flex flex-col items-center justify-center'; // Vertical layout for logged-in user
 
-        // Lógica: Si se muestran los botones de Iniciar Sesión/Registrarse, el ícono necesita un margen derecho
         const iconMarginClass = showAuthButtons ? 'mr-1' : 'mx-auto';
 
-        // Lógica: Si estamos en una ruta de autenticación, el botón está inactivo/oculto (aunque ya lo filtramos más abajo)
         const isDisabled = isAuthPage;
 
         const handleToggle = () => {
-            // Impedir toggle si estamos en una ruta de auth
+            // Prevent toggle if on an auth route
             if (!isDisabled) {
                 onToggleSidebar();
             }
@@ -62,23 +61,22 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
         return (
             <button
                 onClick={handleToggle}
-                // Si showAuthButtons es true, el texto "Asistente" debe ser visible
                 className={`
                     ${flexClasses} p-2 rounded-md
                     transition-all duration-300 ease-in-out
                     text-white font-bold text-xs cursor-pointer
-                    ${effectiveIsSidebarOpen // Usamos el estado efectivo para el color
+                    ${isSidebarOpen // Use isSidebarOpen directly
                         ? 'bg-red-500 hover:bg-red-600' 
                         : 'bg-violet-600 hover:bg-violet-700'
                     }
                 `}
-                title={effectiveIsSidebarOpen ? "Cerrar Asistente" : "Abrir Asistente AI"}
+                title={isSidebarOpen ? "Cerrar Asistente" : "Abrir Asistente AI"}
                 disabled={isDisabled}
             >
                 <RiRobot2Line className={`w-[25px] h-[25px] ${iconMarginClass}`} />
-                {/* El texto debe ser visible si estamos mostrando los botones de LogOut, incluso en móviles, o si es desktop */}
+                {/* Text visibility change based on layout and screen size */}
                 <p className={`${showAuthButtons ? 'text-sm' : 'hidden sm:block text-xs'}`}> 
-                    {effectiveIsSidebarOpen ? "Cerrar" : "Asistente"}
+                    {isSidebarOpen ? "Cerrar" : "Asistente"}
                 </p>
             </button>
         );
@@ -86,16 +84,19 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
 
     const LoggedInLinks = () => (
         <div className='hidden md:flex gap-6 justify-between text-primary-500 font-bold'>
+            {/* Home Link */}
             <Link to="/" className='flex flex-col justify-center items-center cursor-pointer'>
                 <AiOutlineHome className='w-[30px] h-[30px]'/>
                 <p className='text-xs m-1'>Inicio</p>
             </Link>
             
+            {/* Cart Link */}
             <Link to="/cart" className='flex flex-col justify-center items-center cursor-pointer'>
                 <MdOutlineShoppingCart className='w-[30px] h-[30px]'/>
                 <p className='text-xs m-1'>Carrito</p>
             </Link>
 
+            {/* Profile Dropdown Container */}
             <div className='relative'>
                 <div 
                     className='flex flex-col justify-center items-center cursor-pointer'
@@ -105,8 +106,10 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
                     <p className='text-xs m-1'>Perfil</p>
                 </div>
 
+                {/* Dropdown Menu */}
                 {isProfileDropdownOpen && (
                     <div className='absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50 border border-gray-100'>
+                        {/* View Profile Link */}
                         <Link 
                             to="/profile" 
                             className='flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100'
@@ -115,6 +118,7 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
                             <RiAccountCircleLine className='mr-2' /> Ver Perfil
                         </Link>
                         
+                        {/* Logout Link */}
                         <Link 
                             to="/auth/logout" 
                             className='flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-b-md'
@@ -129,17 +133,15 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
     );
 
     const LoggedOutButtons = () => (
-        // Se llama solo si showAuthButtons es true, pero se mantiene la estructura por si hay lógica adicional aquí.
+        // Authentication buttons (Login/Signup)
         <div className='hidden md:flex gap-6 items-center'>
             <CustomButton text='Iniciar Sesión' style='secondary' route='/auth/login' />
             <CustomButton text='Regístrate' style='secondary' route='/auth/signup' />
         </div>
     );
-    
-    // ... (SearchInput, MobileSearchIcon, MenuButton permanecen igual)
 
     const SearchInput = () => (
-        // Apply logic: Hide Search Input if on any /auth route
+        // Hide Search Input if on any /auth route
         <div className={`w-1/3 max-w-xl ${isAuthPage ? 'hidden' : 'hidden sm:block'}`}> 
             <input 
                 type="text" 
@@ -150,7 +152,7 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
     );
 
     const MobileSearchIcon = () => (
-        // Apply logic: Hide Search Icon if on any /auth route
+        // Hide Search Icon if on any /auth route
         isAuthPage ? null : (
             <div className='block sm:hidden cursor-pointer p-2 text-gray-700 hover:text-primary-500'>
                 <RiSearchLine className='w-6 h-6' />
@@ -169,20 +171,21 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
 
     return (
         <div className={navbarContainerClasses}> 
-            {/* Alineación condicional: justify-start si es auth, justify-around en caso contrario. */}
+            {/* Conditional alignment: justify-start if auth page, justify-around otherwise. */}
             <div className={`flex items-center p-4 ${isAuthPage ? 'justify-start' : 'justify-around'}`}>
                 
                 {/* 1. LEFT SECTION: Logo (Desktop) / Hamburger & Search (Mobile) */}
                 <div className='flex items-center gap-4'> 
                     
                     {/* Logo (Visible on desktop, aligned left) */}
-                    <div className='cursor-pointer hidden md:block'>
+                    {/* Applying px-4 padding when on an auth page for separation */}
+                    <div className={`cursor-pointer hidden md:block ${isAuthPage ? 'px-4' : ''}`}>
                         <Link to="/">
                             <h1 className='text-4xl text-primary-500 font-bold'>Allure</h1>
                         </Link>
                     </div>
 
-                    {/* Mobile Menu & Search Icon (Visible on mobile, aligned left) */}
+                    {/* Mobile Menu & Search Icon */}
                     <div className='flex items-center gap-2 md:hidden'>
                         <MenuButton />
                         <MobileSearchIcon />
@@ -195,14 +198,16 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
                 {/* 3. RIGHT SECTION: Links/Buttons and Agent Button */}
                 <div className='flex gap-4 items-center'> 
                     
-                    {/* Renderiza LoggedInLinks o LoggedOutButtons (si showAuthButtons es true) */}
-                    {isLogin ? <LoggedInLinks /> : (showAuthButtons && <LoggedOutButtons />)}
+                    {/* Hide LoggedIn/LoggedOut buttons if on any /auth route */}
+                    {!isAuthPage && (
+                        isLogin ? <LoggedInLinks /> : <LoggedOutButtons />
+                    )}
                     
-                    {/* Renderiza AgentButton solo si NO es /auth y NO es /cart */}
+                    {/* Render AgentButton only if NOT /auth and NOT /cart pages */}
                     {!(isAuthPage || isCartPage) && <AgentButton />}
                 </div>
                 
-                {/* 4. Mobile Logo (Centered only when menu/search icons are present) */}
+                {/* 4. Mobile Logo (Centered) */}
                 <div className='cursor-pointer md:hidden absolute left-1/2 transform -translate-x-1/2'>
                     <Link to="/">
                         <h1 className='text-4xl text-primary-500 font-bold'>Allure</h1>
@@ -214,14 +219,16 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
             {/* Mobile Menu Overlay */}
             {isMenuOpen && (
                 <div className='md:hidden absolute top-full left-0 right-0 bg-white shadow-xl flex flex-col items-center py-4 border-t border-gray-200'>
-                    {/* Do not display navigation/auth buttons in the mobile menu if on an auth page */}
+                    {/* Hide navigation buttons in the mobile menu if on an auth page */}
                     {!isAuthPage && (
                         isLogin ? (
                             <>
                                 <div className='w-full flex flex-col text-primary-500 font-bold'>
+                                    {/* Mobile Logged In Links */}
                                     <Link to="/" className='flex items-center p-3 hover:bg-gray-100 border-b'><AiOutlineHome className='mr-2' /> Inicio</Link>
                                     <Link to="/cart" className='flex items-center p-3 hover:bg-gray-100 border-b'><MdOutlineShoppingCart className='mr-2' /> Carrito</Link>
                                     <Link to="/profile" className='flex items-center p-3 hover:bg-gray-100'><RiAccountCircleLine className='mr-2' /> Perfil</Link>
+                                    {/* Mobile Logout Option */}
                                     <Link 
                                         to="/auth/logout" 
                                         className='flex items-center p-3 text-red-600 hover:bg-red-50'
@@ -233,6 +240,7 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
                         ) : (
                             <>
                                 <div className='w-full flex flex-col p-4 space-y-3'>
+                                    {/* Mobile Logged Out Buttons */}
                                     <CustomButton text='Iniciar Sesión' style='secondary' route='/auth/login' extraStyles='w-full py-3' />
                                     <CustomButton text='Regístrate' style='secondary' route='/auth/signup' extraStyles='w-full py-3' />
                                 </div>
