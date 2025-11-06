@@ -164,9 +164,16 @@ class ClusterRecommender:
             best_k = min(self.k_candidates)
         return best_k
 
-    def _ensure_fitted(self):
-        if self._df is None or self._X_reduced is None or self._kmeans is None or self._labels_ is None:
-            raise RuntimeError("Modelo no entrenado. Llama primero a .fit(df).")
+    def _ensure_fitted(self, need_df: bool = True):
+        # artefactos mínimos necesarios
+        if (self._article_index is None or
+            self._X_reduced is None or
+            self._kmeans is None or
+            self._labels_ is None):
+            raise RuntimeError("Modelo no entrenado (faltan artefactos).")
+        # solo exige _df si el método lo requiere
+        if need_df and self._df is None:
+            raise RuntimeError("Modelo sin DataFrame adjunto. Asigna self._df o reentrena.")
 
     # ------------------
     # Consultas básicas
@@ -444,3 +451,54 @@ class ClusterRecommender:
             cols += seed_cols
 
         return out[cols]
+
+
+    def recommend_cart_ids(self, article_ids, k: int = 10, mode: str = "max",
+                        dentro_cluster: bool = True, return_scores: bool = False):
+        #self._ensure_fitted()
+        self._ensure_fitted(need_df=False)
+
+
+        # 1) anclas válidas
+        idxs = [self._article_index.get(str(a)) for a in article_ids]
+        idxs = [i for i in idxs if i is not None]
+        if not idxs:
+            raise ValueError("IDs no encontrados.")
+
+        # 2) candidatos: clúster(es) de las anclas o todo
+        if dentro_cluster:
+            cand_idx = np.where(np.isin(self._labels_, np.unique(self._labels_[idxs])))[0]
+        else:
+            cand_idx = np.arange(self._X_reduced.shape[0])
+
+        # 3) similitudes
+        C = self._X_reduced[cand_idx]
+        Q = self._X_reduced[idxs]
+        S = cosine_similarity(C, Q)
+
+        m = mode.lower()
+        if m == "max":
+            sims = S.max(axis=1)
+        elif m == "avg":
+            sims = cosine_similarity(C, Q.mean(axis=0, keepdims=True)).ravel()
+        elif m == "min":
+            sims = S.min(axis=1)
+        else:
+            raise ValueError("mode debe ser 'max' | 'avg' | 'min'")
+
+        # 4) índice -> article_id (inverso)
+        inv = [None] * len(self._article_index)
+        for aid, i in self._article_index.items():
+            inv[i] = str(aid)
+
+        in_cart = set(map(str, article_ids))
+        pairs = [(cand_idx[i], float(sims[i])) for i in range(len(cand_idx))
+                if inv[cand_idx[i]] not in in_cart]
+
+        # 5) top-k por score
+        top = sorted(pairs, key=lambda x: x[1], reverse=True)[:k]
+        ids = [inv[i] for i, _ in top]
+
+        if return_scores:
+            return [{"article_id": inv[i], "score": s} for i, s in top]
+        return ids
