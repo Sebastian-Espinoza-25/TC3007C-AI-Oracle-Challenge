@@ -5,8 +5,6 @@ import './index.css'
 
 // LAYOUTS
 import DefaultLayout from './layouts/DefaultLayout'
-import SimpleLayout from './layouts/SimpleLayout'
-import CartLayout from './layouts/CartLayout'
 
 // PAGES
 import Home from './pages/Home'
@@ -23,29 +21,16 @@ const router = createBrowserRouter([
     element: <DefaultLayout/>, // Here we render Default Layout with the navbar and sidebar repeated in each children page
     children: [
       {index: true, element: <Home/>},
-      
-    ]
-  },
-  {
-    path: "/cart",
-    element: <CartLayout/>,
-    children: [
-      {index: true, element: <Cart/>}
+      {path: "cart", element: <Cart/>},
+      {path: "auth/signup", element: <SignUp/>},
+      {path: "auth/logout", element: <Logout/>},
+      {path: "auth/login", element: <Login/>}
     ]
   },
   {
     path: "/atelier",
     element: <Atelier/>,
   },
-  {
-    path: "/auth",
-    element: <SimpleLayout/>,
-    children: [
-      { path: "login", element: <Login/> }, // If you want add a new route with this Layout only need to generate another children with a path and element
-      { path: "signup", element: <SignUp/> },
-      {path: "logout", element: <Logout/>}, 
-    ]
-  }
 ])
 
 createRoot(document.getElementById('root')).render(

@@ -46,7 +46,7 @@ const Home = ({ isSidebarOpen = false }) => {
         <div className={mainContentClasses}> 
             
             {/* --- Hero Banner Section --- */}
-            <section className='mb-12'>
+            <section className='mb-12 mt-8'>
                 <div 
                     className='relative h-[400px] bg-gray-700 rounded-xl overflow-hidden'
                     style={{ backgroundImage: `url(${heroBannerImage})`, backgroundSize: 'cover' }}
