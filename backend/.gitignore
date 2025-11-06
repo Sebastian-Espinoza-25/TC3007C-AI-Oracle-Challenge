@@ -21,3 +21,7 @@ instance/
 
 # Wallet files
 Wallet_OracleChallenge/
+
+# .pkl
+*.pkl
+*.pickle

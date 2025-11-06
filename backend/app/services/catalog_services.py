@@ -112,7 +112,7 @@ def list_products(
         order_by = "ORDER BY prod_name DESC"
 
     sql = f"""
-    SELECT external_article_id, product_code, prod_name, price, stock
+    SELECT external_article_id, product_code, prod_name, price, stock, perceived_colour_master_name
     FROM catalog
     {where_sql}
     {order_by}
@@ -189,7 +189,8 @@ def get_product(pool, external_article_id: str) -> Optional[Dict]:
       prod_name,
       price,
       stock,
-      detail_desc
+      detail_desc,
+      perceived_colour_master_name
     FROM catalog
     WHERE external_article_id = :external_article_id
     """
