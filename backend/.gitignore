@@ -5,6 +5,7 @@ __pycache__/
 # Virtual environments
 venv/
 .env/
+.env
 
 # Flask instance folder
 instance/
@@ -20,3 +21,7 @@ instance/
 
 # Wallet files
 Wallet_OracleChallenge/
+
+# .pkl
+*.pkl
+*.pickle
