@@ -1,69 +1,106 @@
-// In /src/pages/Home.jsx
-import React from 'react';
-import ProductCard from '../components/UI/ProductCard'; 
-import heroBannerImage from '../assets/banner.jpg'; 
+import React, { useState, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom';
+import ProductCard from '../components/UI/ProductCard';
+import heroBannerImage from '../assets/banner.jpg';
 
-/**
- * Helper function to generate product data with a simple placeholder image URL.
- */
-const generateProducts = (count = 4) => {
-    return Array.from({ length: count }, (_, index) => {
-        const basePrice = 89 + (index * 10);
-        const nameOptions = ['Blazer Clásico Crema', 'Camisa de Lino Azul', 'Reloj Minimalista', 'Bolso de Cuero'];
-        const stockOptions = [3, 10, 1, 4];
-        
-        return {
-            name: nameOptions[index % nameOptions.length],
-            price: `$${basePrice}`,
-            stock: stockOptions[index % stockOptions.length],
-            // FIX: Using placehold.co, which is extremely stable.
-            // Format: 
-            image: `https://placehold.co/300x250/F5F5DC/000000/png?text=Product+${index + 1}`,
+// Endpoint para la API
+const API_SUFFIX = '/catalog?limit=20&offset=725';
+
+const Home = () => {
+    // Recibimos el estado de la sidebar desde el Outlet
+    const { isSidebarOpen } = useOutletContext();
+
+    const [featuredProducts, setFeaturedProducts] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // URL base (entorno o localhost)
+    const BASE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/';
+    const API_URL = `${BASE_API_URL}${API_SUFFIX}`;
+
+    // --- Cargar productos ---
+    useEffect(() => {
+        const fetchProducts = async () => {
+            try {
+                const response = await fetch(API_URL);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                const products = data.items.map(item => ({
+                    name: item.prod_name,
+                    price: `$${item.price.toFixed(2)}`,
+                    stock: item.stock,
+                    image:
+                        item.image_url ||
+                        `https://placehold.co/400x300/F5F5DC/000000/png?text=${item.prod_name.substring(0, 10).trim()}`
+                }));
+
+                setFeaturedProducts(products);
+            } catch (error) {
+                console.error("Error fetching products:", error);
+            } finally {
+                setIsLoading(false);
+            }
         };
-    });
-};
 
+        fetchProducts();
+    }, [API_URL]);
 
-const Home = ({ isSidebarOpen = false }) => {
-    
-    const sidebarWidthClass = 'md:mr-96'; 
-    
+    // --- Clases dinámicas ---
+    const sidebarWidthClass = 'md:mr-96';
+
     const mainContentClasses = `
-        transition-margin duration-300 ease-in-out p-4
+        transition-margin duration-300 ease-in-out
         ${isSidebarOpen ? sidebarWidthClass : ''}
     `;
 
-    // DATA INTEGRATION: Now using the generation function
-    const featuredProducts = generateProducts(4); 
-    
-    // DYNAMIC LOGIC: Switches from 4 columns to 3 columns on large screens (lg) when sidebar is open.
     const productGridClasses = `
         grid grid-cols-1 sm:grid-cols-2 gap-4
         ${isSidebarOpen ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}
     `;
 
+    // --- Estados de carga ---
+    if (isLoading) {
+        return (
+            <div className={mainContentClasses + ' text-center text-2xl mt-20'}>
+                <p>Cargando productos...</p>
+            </div>
+        );
+    }
+
+    if (featuredProducts.length === 0 && !isLoading) {
+        return (
+            <div className={mainContentClasses + ' text-center text-2xl mt-20'}>
+                <p>No se encontraron productos.</p>
+            </div>
+        );
+    }
+
+    // --- Render principal ---
     return (
-        <div className={mainContentClasses}> 
-            
-            {/* --- Hero Banner Section --- */}
-            <section className='mb-12 mt-8'>
-                <div 
-                    className='relative h-[400px] bg-gray-700 rounded-xl overflow-hidden'
+        <div className={mainContentClasses}>
+            {/* --- Hero Banner --- */}
+            <section className="mb-12 mt-8">
+                <div
+                    className="relative h-[400px] bg-gray-700 rounded-xl overflow-hidden"
                     style={{ backgroundImage: `url(${heroBannerImage})`, backgroundSize: 'cover' }}
                 >
-                    <div className='absolute inset-0 bg-black opacity-40'></div> 
-                    
-                    <div className='absolute bottom-1/4 left-8 text-white max-w-xl p-4'>
-                        <h1 className='text-5xl font-extrabold mb-3'>
+                    <div className="absolute inset-0 bg-black opacity-40"></div>
+
+                    <div className="absolute bottom-1/4 left-8 text-white max-w-xl p-4">
+                        <h1 className="text-5xl font-extrabold mb-3">
                             Encuentra Tu Estilo Perfecto
                         </h1>
-                        <p className='text-lg mb-6'>
+                        <p className="text-lg mb-6">
                             Descubre las últimas tendencias y clásicos atemporales.
                         </p>
-                        
+
                         <a href="/shop">
                             <button
-                                className='bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200'
+                                className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200"
                             >
                                 Explorar Ahora
                             </button>
@@ -72,17 +109,16 @@ const Home = ({ isSidebarOpen = false }) => {
                 </div>
             </section>
 
-            {/* --- Offers Section --- */}
-            <section className='mb-16'>
-                <h2 className='text-center text-4xl font-extrabold mb-8'>
+            {/* --- Sección de Productos --- */}
+            <section className="mb-16">
+                <h2 className="text-center text-4xl font-extrabold mb-8">
                     ¡Conoce nuestros nuevos productos!
                 </h2>
-                
-                {/* Product Grid */}
+
                 <div className={productGridClasses}>
                     {featuredProducts.map((product, index) => (
                         <ProductCard
-                            key={index}
+                            key={product.name + index}
                             name={product.name}
                             price={product.price}
                             stock={product.stock}
@@ -91,28 +127,26 @@ const Home = ({ isSidebarOpen = false }) => {
                     ))}
                 </div>
             </section>
-            
-            {/* --- New Agent Banner Section --- */}
-            <section className='mb-8'>
-                <div className='bg-indigo-900 text-white p-16 rounded-xl text-center shadow-2xl'>
-                    <h2 className='text-4xl font-extrabold mb-6'>
+
+            {/* --- Banner de Asistente de IA --- */}
+            <section className="mb-8">
+                <div className="bg-indigo-900 text-white p-16 rounded-xl text-center shadow-2xl">
+                    <h2 className="text-4xl font-extrabold mb-6">
                         ¿No sabes qué ponerte?
                     </h2>
-                    <p className='text-lg mb-8 max-w-2xl mx-auto'>
-                        Usa nuestro asistente de IA avanzado. Sube una foto, describe tu necesidad o incluso envía una 
+                    <p className="text-lg mb-8 max-w-2xl mx-auto">
+                        Usa nuestro asistente de IA avanzado. Sube una foto, describe tu necesidad o incluso envía una
                         nota de voz, y obtén recomendaciones personalizadas al instante.
                     </p>
-                    
+
                     <button
-                        onClick={() => console.log("Toggle Sidebar here")} 
-                        className='bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-12 rounded-lg text-xl transition-colors duration-200'
+                        onClick={() => console.log("Toggle Sidebar here")}
+                        className="bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-12 rounded-lg text-xl transition-colors duration-200"
                     >
                         Probar Asistente Avanzado
                     </button>
                 </div>
             </section>
-            
-            <section></section>
         </div>
     );
 };

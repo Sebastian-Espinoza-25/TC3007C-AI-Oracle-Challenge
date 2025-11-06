@@ -6,46 +6,42 @@ import SidebarAgent from '../components/UI/SidebarAgent';
 import Footer from '../components/UI/Footer';
 
 const DefaultLayout = () => {
-    // This state control the sidebar visibility
+    // Estado de la sidebar
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const sidebarWidthClass = 'md:mr-96';
-    
-    // Toggle for open/close
+
+    // Toggle de apertura/cierre
     const toggleSidebar = () => {
         setIsSidebarOpen(prev => !prev);
     };
 
     return (
-        // 1. Main container: Set to flex column and fill the viewport height
-        <div className='flex flex-col min-h-screen'> 
+        <div className="flex flex-col min-h-screen">
+            {/* --- Navbar --- */}
             <Navbar 
                 onToggleSidebar={toggleSidebar} 
-                isSidebarOpen={isSidebarOpen} // Respecting the sidebar state
+                isSidebarOpen={isSidebarOpen}
             />
-            
-            {/* 2. Main content: Use flex-grow to consume remaining vertical space and ensure full width */}
-            <main 
-                className={`flex-grow transition-margin duration-300 ease-in-out w-full ${ // Added w-full
+
+            {/* --- Contenido principal --- */}
+            <main
+                className={`flex-grow transition-margin duration-300 ease-in-out w-full ${
                     isSidebarOpen ? sidebarWidthClass : ''
                 }`}
             >
-                {/* 3. The inner content wrapper where routing occurs. 
-                     - mt-16 pushes content below the fixed Navbar.
-                     - REMOVED 'p-4' and added 'w-full h-full' to fill the available space.
-                */}
-                <div className="mt-16 w-full h-full"> 
-                    <Outlet />
+                {/* Pasa el estado al Outlet */}
+                <div className="mt-16 p-4 w-full">
+                    <Outlet context={{ isSidebarOpen }} />
                 </div>
             </main>
 
-            {/* Footer remains at the bottom, pushed by the growing main content */}
-            <Footer
-                isSidebarOpen={isSidebarOpen}
-            />
-            
+            {/* --- Footer --- */}
+            <Footer isSidebarOpen={isSidebarOpen} />
+
+            {/* --- Sidebar Agent --- */}
             <SidebarAgent 
-                isOpen={isSidebarOpen} 
-                onClose={() => setIsSidebarOpen(false)} 
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
             />
         </div>
     );
