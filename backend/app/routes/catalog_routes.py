@@ -1,10 +1,11 @@
 from flask import Blueprint, request, jsonify, current_app
 from app.services import catalog_services as svc
+from app.services.visual_agent_service import predict as predict
 from app.services.object_storage_service import (
     par_for_external_ids, par_for_external_id, key_from_external_id
 )
 
-catalog_bp = Blueprint("catalog", __name__, url_prefix="/catalog")
+catalog_bp = Blueprint("catalog", __name__)
 
 def _parse_bool(val: str | None):
     if val is None:
@@ -80,8 +81,6 @@ def list_catalog():
     data["total"] = total
     return jsonify(data), 200
 
-
-
 @catalog_bp.get("/<string:external_article_id>")
 def product_detail(external_article_id: str):
     pool = current_app.config["DB_POOL"]
@@ -104,3 +103,72 @@ def facets_product_types():
     pool = current_app.config["DB_POOL"]
     items = svc.get_distinct_product_types(pool)
     return jsonify({"items": items}), 200
+
+@catalog_bp.get("/visual_agent")
+def catalog_visual_agent():
+    """
+    GET /catalog/visual_agent?ids=010...,011...&k=10
+    También acepta JSON en el body:
+    {
+      "ids": ["010...", "011..."],
+      "k": 10
+    }
+    """
+    # 1. intentar querystring
+    raw_ids = (request.args.get("ids") or "").strip()
+
+    seed_ids = []
+    k = request.args.get("k", default=None, type=int)
+
+    if raw_ids:
+        seed_ids = [s.strip() for s in raw_ids.split(",") if s.strip()]
+    else:
+        # 2. si no venían en query, intentar body JSON
+        data = request.get_json(silent=True) or {}
+        body_ids = data.get("ids")
+        if body_ids and isinstance(body_ids, list):
+            seed_ids = [str(x).strip() for x in body_ids if str(x).strip()]
+        if k is None:
+            k = data.get("k", 10)
+
+    if not seed_ids:
+        return jsonify({"error": "Debes enviar ids en query (?ids=...) o en JSON {\"ids\": [...]}"}), 400
+
+    if k is None:
+        k = 10
+
+    # 3. pedir recomendaciones al servicio
+    try:
+        rec_ids = predict(seed_ids, k=k)
+        rec_ids = [str(x) for x in rec_ids]
+    except Exception as e:
+        return jsonify({"error": f"Error al obtener recomendaciones del modelo: {e}"}), 500
+
+    if not rec_ids:
+        return jsonify({"items": [], "total": 0}), 200
+
+    # 4. traer productos
+    pool = current_app.config["DB_POOL"]
+    items = []
+    for eid in rec_ids:
+        prod = svc.get_product(pool, eid)
+        if prod:
+            items.append(prod)
+
+    # 5. imágenes
+    minutes = int(request.args.get("image_minutes", 30))
+    mapping = par_for_external_ids(rec_ids, minutes=minutes, verify=True)
+
+    for it in items:
+        eid = it["external_article_id"]
+        url = mapping.get(eid)
+        it["image_url"] = url
+        it["has_image"] = bool(url)
+        it["image_key"] = key_from_external_id(eid)
+
+    return jsonify({
+        "items": items,
+        "total": len(items),
+        "seeds": seed_ids,
+        "recommended_ids": rec_ids,
+    }), 200
