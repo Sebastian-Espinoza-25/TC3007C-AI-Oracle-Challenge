@@ -11,7 +11,7 @@ const Home = () => {
     const { isSidebarOpen } = useOutletContext();
 
     const [featuredProducts, setFeaturedProducts] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
 
     // URL base (entorno o localhost)
     const BASE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/';
