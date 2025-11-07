@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-
-// Import React Router components for navigation
-import { useLocation, Link } from 'react-router-dom';
-
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 import CustomButton from './CustomButton';
+import { useAuth } from '../../context/AuthContext';
 
 // Icon Imports
 import { AiOutlineHome } from "react-icons/ai";
@@ -12,8 +10,11 @@ import { RiAccountCircleLine, RiMenuLine, RiCloseLine, RiSearchLine, RiLogoutBox
 import { RiRobot2Line } from "react-icons/ri";
 
 const Navbar = ({ onToggleSidebar, isSidebarOpen }) => { 
+    const { isLoggedIn, logout } = useAuth();
+
     // Get the location object which includes the current route
     const location = useLocation();
+    const navigate = useNavigate();
     const currentPath = location.pathname;
 
     // Route logic: Hide most elements on authentication pages
@@ -22,12 +23,11 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
     const isCartPage = currentPath.startsWith('/cart');
     
     const [isMenuOpen, setIsMenuOpen] = useState(false); // Default to closed
-    const [isLogin, setLogin] = useState(false); // Set to 'true' or 'false' for demonstration/testing
     
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
     
     // Logic to determine if LogOut buttons should use the alternative layout for the AgentButton
-    const showAuthButtons = !isLogin && !isAuthPage;
+    const showAuthButtons = !isLoggedIn && !isAuthPage;
 
     // Removed effectiveIsSidebarOpen. Now using isSidebarOpen directly from props.
     // NOTE: The initial state of isSidebarOpen must be managed by the parent component (set to false initially).
@@ -119,13 +119,12 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
                         </Link>
                         
                         {/* Logout Link */}
-                        <Link 
-                            to="/auth/logout" 
-                            className='flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-b-md'
-                            onClick={() => setIsProfileDropdownOpen(false)}
+                        <div 
+                            className='flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-b-md cursor-pointer'
+                            onClick={handleLogout}
                         >
                             <RiLogoutBoxLine className='mr-2' /> Cerrar Sesión
-                        </Link>
+                        </div>
                     </div>
                 )}
             </div>
@@ -169,6 +168,12 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
         </button>
     );
 
+    const handleLogout = () => {
+        logout(); // Llama a la función 'logout' del contexto
+        setIsProfileDropdownOpen(false); // Cierra el menú
+        navigate('/auth/logout'); // Redirige al usuario a la página de login
+    };
+
     return (
         <div className={navbarContainerClasses}> 
             {/* Conditional alignment: justify-start if auth page, justify-around otherwise. */}
@@ -200,7 +205,7 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
                     
                     {/* Hide LoggedIn/LoggedOut buttons if on any /auth route */}
                     {!isAuthPage && (
-                        isLogin ? <LoggedInLinks /> : <LoggedOutButtons />
+                        isLoggedIn ? <LoggedInLinks /> : <LoggedOutButtons />
                     )}
                     
                     {/* Render AgentButton only if NOT /auth and NOT /cart pages */}
@@ -221,7 +226,7 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
                 <div className='md:hidden absolute top-full left-0 right-0 bg-white shadow-xl flex flex-col items-center py-4 border-t border-gray-200'>
                     {/* Hide navigation buttons in the mobile menu if on an auth page */}
                     {!isAuthPage && (
-                        isLogin ? (
+                        isLoggedIn ? (
                             <>
                                 <div className='w-full flex flex-col text-primary-500 font-bold'>
                                     {/* Mobile Logged In Links */}
@@ -229,12 +234,12 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
                                     <Link to="/cart" className='flex items-center p-3 hover:bg-gray-100 border-b'><MdOutlineShoppingCart className='mr-2' /> Carrito</Link>
                                     <Link to="/profile" className='flex items-center p-3 hover:bg-gray-100'><RiAccountCircleLine className='mr-2' /> Perfil</Link>
                                     {/* Mobile Logout Option */}
-                                    <Link 
-                                        to="/auth/logout" 
-                                        className='flex items-center p-3 text-red-600 hover:bg-red-50'
+                                    <div 
+                                        className='flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-b-md cursor-pointer'
+                                        onClick={handleLogout}
                                     >
                                         <RiLogoutBoxLine className='mr-2' /> Cerrar Sesión
-                                    </Link>
+                                    </div>
                                 </div>
                             </>
                         ) : (

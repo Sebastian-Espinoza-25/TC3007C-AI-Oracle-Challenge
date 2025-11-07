@@ -1,9 +1,3 @@
-// src/context/AuthContext.jsx
-
-// Desactiva la regla de ESLint que causa el aviso de Fast Refresh.
-// Esto permite exportar el Provider y el Hook desde el mismo archivo.
-/* eslint-disable react-refresh/only-export-components */ 
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 // ====================================================================
@@ -79,7 +73,3 @@ export const AuthProvider = ({ children }) => {
         </AuthContext.Provider>
     );
 };
-
-// NOTA: He cambiado el useState inicial para usar funciones de inicialización.
-// Esto garantiza que localStorage solo se lea una vez al montar el componente, 
-// mejorando ligeramente el rendimiento.

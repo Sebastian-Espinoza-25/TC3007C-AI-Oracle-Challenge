@@ -1,9 +1,10 @@
 import React from 'react';
 import CustomButton from '../components/UI/CustomButton';
 import { useState } from 'react';
-
+import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -20,15 +21,15 @@ const Login = () => {
         body: JSON.stringify({email, password}),
       });
 
-      alert(response)
 
       if(!response.ok){
         throw new Error('Error en la autenticación');
       }
 
       const data = await response.json();
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      login(data.access_token, data.user)
+      alert('Inicio de sesión exitoso');
+
 
       // Redirect to home page after successful login
       window.location.href = '/';
