@@ -1,3 +1,6 @@
 # Ignora cualquier archivo CSV en cualquier carpeta
 **/*.csv
 **/*.csv
+
+# OS
+.DS_Store
