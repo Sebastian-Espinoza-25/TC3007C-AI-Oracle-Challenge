@@ -1,29 +1,14 @@
 import React, { useState } from "react";
 import { CartProvider, useCart } from "../contexts/CartContext";
 import Spinner from "../components/UI/Spinner";
-/**
- * Shopping Cart demo that cumple con los criterios de la imagen:
- * 1) Componentes: CartPage, CartItem, CartSummary, CartBadge, MiniCart.
- * 2) Servicios conectados a API REST: GET /cart, POST /cart/items, PUT /cart/items/:id, DELETE /cart/items/:id, DELETE /cart.
- * 3) Estado global con Context para items, totales, loading, errores.
- * 4) Interacciones: agregar desde ProductCard, incrementar/decrementar cantidad, remover y vaciar carrito.
- * 5) Persistencia de sesión mediante cartId en localStorage y envío por header X-Cart-Id.
- * 6) Manejo de errores y toasts (éxito y fallo), spinners y skeletons.
- * 7) Botón "Ir a Checkout" deshabilitado si el carrito está vacío.
- * 8) Mini-carrito y badge se actualizan en cada operación.
- *
- * Supuestos de API:
- *  - Respuestas JSON con shape: { id: string, items: Array<{id, productId, title, price, image, qty}>, subtotal: number, count: number }
- *  - Al crear o leer el carrito, el backend puede devolver un id de carrito. Se envía por header X-Cart-Id en las siguientes peticiones.
- *  - Cambiar BASE_URL conforme a su backend.
- *
- */
 
-// API DEMO SIN BACKEND: almacenamiento en localStorage y latencia simulada
+
 
 const Price = ({ value }) => <span>${value?.toFixed(2) ?? "0.00"}</span>;
 
+// ---------------------------------------------------------------------------
 // CartBadge (contador)
+// ---------------------------------------------------------------------------
 function CartBadge() {
   const { cart, loading } = useCart();
   return (
@@ -34,8 +19,43 @@ function CartBadge() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// ProductCard para catálogo REAL (recibe props desde tu data)
+// ---------------------------------------------------------------------------
+export function ProductCard({ product, onAdded }) {
+  // product: { article_id, title, price, image }
+  const { addItem } = useCart();
+  const [busy, setBusy] = useState(false);
+  const articleId = product.article_id ?? product.id;
 
+  const handleAdd = async () => {
+    setBusy(true);
+    await addItem({
+      productId: String(articleId),
+      title: product.title,
+      price: Number(product.price ?? 0),
+      image: product.image,
+      qty: 1,
+    });
+    setBusy(false);
+    onAdded?.();
+  };
+
+  return (
+    <div className="rounded-2xl border p-3">
+      <img src={product.image} alt={product.title} className="h-40 w-full rounded object-cover" />
+      <div className="mt-2 font-medium line-clamp-1">{product.title}</div>
+      <div className="text-sm text-slate-500">${Number(product.price ?? 0).toFixed(2)}</div>
+      <button disabled={busy} onClick={handleAdd} className="mt-3 h-10 w-full rounded-xl bg-slate-900 text-white disabled:opacity-50">
+        {busy ? "Agregando..." : "Agregar al carrito"}
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // CartItem
+// ---------------------------------------------------------------------------
 function CartItem({ item }) {
   const { updateQty, removeItem } = useCart();
   const [busy, setBusy] = useState(false);
@@ -65,13 +85,15 @@ function CartItem({ item }) {
   );
 }
 
-// CartSummary
+// ---------------------------------------------------------------------------
+// CartSummary (abajo)
+// ---------------------------------------------------------------------------
 function CartSummary() {
   const { cart, clearCart } = useCart();
   const [busy, setBusy] = useState(false);
 
   const onClear = async () => { setBusy(true); await clearCart(); setBusy(false); };
-  const shipping = 0; // Gratis en demo
+  const shipping = 0; // Gratis en demo/UI
   const taxes = Math.round(cart.subtotal * 0.09 * 100) / 100; // 9% demo
   const total = cart.subtotal + shipping + taxes;
 
@@ -94,32 +116,11 @@ function CartSummary() {
   );
 }
 
-// Catálogo de demostración para llenar el carrito (usa window.DEMO_CATALOG)
-const DEMO_CATALOG = [
-  { id: "p1", title: "Camiseta de algodón orgánico", price: 25, image: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=400&auto=format&fit=crop" },
-  { id: "p2", title: "Pantalones vaqueros ajustados", price: 60, image: "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=400&auto=format&fit=crop" },
-  { id: "p3", title: "Zapatillas deportivas", price: 80, image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=400&auto=format&fit=crop" },
-];
-window.DEMO_CATALOG = DEMO_CATALOG; // lo usa el CartContext en modo demo
-
-function DemoCatalog() {
-  const { addItem } = useCart();
-  return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      {DEMO_CATALOG.map(p => (
-        <div key={p.id} className="rounded-2xl border p-3">
-          <img src={p.image} alt={p.title} className="h-40 w-full rounded object-cover" />
-          <div className="mt-2 font-medium line-clamp-1">{p.title}</div>
-          <div className="text-sm text-slate-500"><Price value={p.price} /></div>
-          <button onClick={() => addItem({ productId: p.id, title: p.title, price: p.price, image: p.image, qty: 1 })} className="mt-3 h-10 w-full rounded-xl bg-slate-900 text-white">Agregar al carrito</button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
+// ---------------------------------------------------------------------------
 // Página principal
-export default function CartPage() {
+// ---------------------------------------------------------------------------
+export default function CartPage({ products = [] }) {
+  // `products` es tu catálogo real traído por otra vista/llamada; este componente no consulta catálogo.
   return (
     <CartProvider>
       <div className="mx-auto max-w-5xl px-4 py-8">
@@ -128,11 +129,15 @@ export default function CartPage() {
           <CartBadge />
         </header>
 
-        {/* Catálogo de demostración */}
-        <section className="mb-8">
-          <h2 className="mb-3 text-lg font-semibold">Catálogo de demostración</h2>
-          <DemoCatalog />
-        </section>
+        {/* Renderiza aquí tus ProductCards con tu catálogo real (si decides mostrar catálogo sobre el carrito) */}
+        {products.length > 0 && (
+          <section className="mb-8">
+            <h2 className="mb-3 text-lg font-semibold">Catálogo</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {products.map(p => <ProductCard key={p.article_id ?? p.id} product={p} />)}
+            </div>
+          </section>
+        )}
 
         <MainCartContent />
       </div>
@@ -154,7 +159,7 @@ function MainCartContent() {
 
   if (cart.items.length === 0) return (
     <div className="rounded-2xl border p-10 text-center">
-      <p className="text-slate-600">Tu carrito está vacío. Agrega productos del catálogo de arriba.</p>
+      <p className="text-slate-600">Tu carrito está vacío.</p>
     </div>
   );
 
