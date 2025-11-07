@@ -22,7 +22,7 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
     const isCartPage = currentPath.startsWith('/cart');
     
     const [isMenuOpen, setIsMenuOpen] = useState(false); // Default to closed
-    const [isLogin, setLogin] = useState(true); // Set to 'true' or 'false' for demonstration/testing
+    const [isLogin, setLogin] = useState(false); // Set to 'true' or 'false' for demonstration/testing
     
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
     
@@ -37,7 +37,7 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
     const navbarContainerClasses = `
         fixed top-0 left-0 right-0 z-50 bg-white shadow-md 
         transition-margin duration-300 ease-in-out 
-        ${effectiveIsSidebarOpen ? sidebarWidthClass : ''}
+        ${isSidebarOpen ? sidebarWidthClass : ''}  // <-- CAMBIADO a 'isSidebarOpen'
     `;
 
     // --- Sub-components  ---

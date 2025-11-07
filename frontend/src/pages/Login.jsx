@@ -2,6 +2,7 @@ import React from 'react';
 import CustomButton from '../components/UI/CustomButton';
 import { useState } from 'react';
 
+
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,6 +19,8 @@ const Login = () => {
         },
         body: JSON.stringify({email, password}),
       });
+
+      alert(response)
 
       if(!response.ok){
         throw new Error('Error en la autenticación');

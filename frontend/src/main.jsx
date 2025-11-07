@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import './index.css'
 
+// CONTEXTS
+import { AuthProvider } from './contexts/UserContext'
+
 // LAYOUTS
 import DefaultLayout from './layouts/DefaultLayout'
 
@@ -37,6 +40,8 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <RouterProvider router={router}></RouterProvider>
+    <AuhtProvider>      
+      <RouterProvider router={router}></RouterProvider>
+    </AuhtProvider>
   </StrictMode>,
 )
