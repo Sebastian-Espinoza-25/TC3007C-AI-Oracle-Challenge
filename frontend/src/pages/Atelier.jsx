@@ -211,7 +211,7 @@ const Atelier = () => {
                         Encuentra tu estilo
                       </h3>
                       <p className="text-sm text-gray-600">
-                        ube una foto de tu camisa favorita, y te muestro posibles accesorios para combinar.
+                        Sube una foto de tu outfit y lo analizaré.
                       </p>
                     </div>
                   </div>

@@ -1,9 +1,14 @@
 // In /src/components/UI/ProductCard.jsx
 import React from 'react';
-import CustomButton from './CustomButton';
+// NOTA IMPORTANTE: Para que la navegación funcione en React, 
+// esta etiqueta 'a' debe ser reemplazada por el componente <Link> de 'react-router-dom'.
+// Ejemplo: import { Link } from 'react-router-dom';
+import CustomButton from './CustomButton'; 
 import imagen from '../../assets/react.svg';
 
 const ProductCard = ({
+    // *** SOLUCIÓN: Agregamos la prop 'productId' para construir el enlace ***
+    productId = 'default-id', 
     name = 'Producto por default',
     price = '$99',
     stock = 3,
@@ -32,7 +37,7 @@ const ProductCard = ({
     const buttonText = isInStock ? 'Agregar al carrito' : 'Notificarme';
 
     // A utility function to generate a unique gradient ID for the mask style (kept for completeness)
-    const gradientId = `gradient-mask-${name.replace(/\s/g, '-')}`;
+    // const gradientId = `gradient-mask-${name.replace(/\s/g, '-')}`;
 
     return (
         <div className='w-full rounded-xl overflow-hidden bg-white shadow-lg'>
@@ -52,16 +57,22 @@ const ProductCard = ({
             </div>
 
             <div className='p-6 text-left'>
-                <h3
-                    className='font-bold text-xl mb-3 overflow-hidden whitespace-nowrap'
-                    style={{
-                        WebkitMaskImage: 'linear-gradient(to right, black 90%, transparent 100%)',
-                        maskImage: 'linear-gradient(to right, black 90%, transparent 100%)', // Add gradient overflow for the text
-                    }}
+                
+                <a 
+                    href={`/detail/${productId}`} 
+                    className='block cursor-pointer hover:underline text-gray-900' // Clase 'block' para que ocupe todo el ancho
                 >
-                    {/* Use the modified name */}
-                    {displayName} 
-                </h3>
+                    <h3
+                        className='font-bold text-xl mb-3 overflow-hidden whitespace-nowrap'
+                        style={{
+                            WebkitMaskImage: 'linear-gradient(to right, black 90%, transparent 100%)',
+                            maskImage: 'linear-gradient(to right, black 90%, transparent 100%)', // Add gradient overflow for the text
+                        }}
+                    >
+                        {/* Use the modified name */}
+                        {displayName} 
+                    </h3>
+                </a>
                 
                 {/* Stock Status remains */}
                 {isInStock && (
