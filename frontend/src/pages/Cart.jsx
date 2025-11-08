@@ -2,13 +2,10 @@ import React, { useState } from "react";
 import { CartProvider, useCart } from "../contexts/CartContext";
 import Spinner from "../components/UI/Spinner";
 
-
-
 const Price = ({ value }) => <span>${value?.toFixed(2) ?? "0.00"}</span>;
 
-// ---------------------------------------------------------------------------
+
 // CartBadge (contador)
-// ---------------------------------------------------------------------------
 function CartBadge() {
   const { cart, loading } = useCart();
   return (
@@ -19,9 +16,8 @@ function CartBadge() {
   );
 }
 
-// ---------------------------------------------------------------------------
+
 // ProductCard para catálogo REAL (recibe props desde tu data)
-// ---------------------------------------------------------------------------
 export function ProductCard({ product, onAdded }) {
   // product: { article_id, title, price, image }
   const { addItem } = useCart();
@@ -53,9 +49,8 @@ export function ProductCard({ product, onAdded }) {
   );
 }
 
-// ---------------------------------------------------------------------------
+
 // CartItem
-// ---------------------------------------------------------------------------
 function CartItem({ item }) {
   const { updateQty, removeItem } = useCart();
   const [busy, setBusy] = useState(false);
@@ -85,9 +80,8 @@ function CartItem({ item }) {
   );
 }
 
-// ---------------------------------------------------------------------------
+
 // CartSummary (abajo)
-// ---------------------------------------------------------------------------
 function CartSummary() {
   const { cart, clearCart } = useCart();
   const [busy, setBusy] = useState(false);
@@ -116,9 +110,8 @@ function CartSummary() {
   );
 }
 
-// ---------------------------------------------------------------------------
+
 // Página principal
-// ---------------------------------------------------------------------------
 export default function CartPage({ products = [] }) {
   // `products` es tu catálogo real traído por otra vista/llamada; este componente no consulta catálogo.
   return (
