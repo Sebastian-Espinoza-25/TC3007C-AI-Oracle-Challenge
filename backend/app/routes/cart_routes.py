@@ -1,6 +1,8 @@
 from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app.services import cart_services as svc
+from app.services.object_storage_service import (
+    par_for_external_ids, key_from_external_id)
 
 # Blueprint for cart routes
 cart_bp = Blueprint("cart", __name__, url_prefix="/cart")
@@ -24,6 +26,26 @@ def _uid():
 def get_cart():
     pool = current_app.config["DB_POOL"]
     data = svc.get_cart(pool, _uid())
+
+    # minutes validity for signed URLs
+    minutes = int(request.args.get("image_minutes", 30))
+
+    # Keys might be in article_id or ARTICLE_ID depending on service
+    ids = []
+    for it in data.get("items", []):
+        eid = it.get("article_id") or it.get("ARTICLE_ID")
+        if eid:
+            ids.append(eid)
+
+    if ids:
+        mapping = par_for_external_ids(ids, minutes=minutes, verify=True)
+        for it in data["items"]:
+            eid = it.get("article_id") or it.get("ARTICLE_ID")
+            url = mapping.get(eid)
+            it["IMAGE_URL"] = url           # None if no image
+            it["HAS_IMAGE"] = bool(url)
+            it["IMAGE_KEY"] = key_from_external_id(eid)
+
     return jsonify(data), 200
 
 # Route to add item to cart
