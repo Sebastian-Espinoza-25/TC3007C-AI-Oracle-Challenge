@@ -25,3 +25,6 @@ Wallet_OracleChallenge/
 # .pkl
 *.pkl
 *.pickle
+
+# chroma DB 
+chroma_db/
