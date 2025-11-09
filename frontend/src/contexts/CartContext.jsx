@@ -2,15 +2,9 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useAuth } from "./AuthContext";
 
-const API_URL = import.meta.env.VITE_API_URL; // p. ej., http://127.0.0.1:8080/api
+const API_URL = import.meta.env.VITE_API_URL;
 const CartCtx = createContext(null);
 
-/**
- * CartProvider
- * - Normaliza la respuesta del backend
- * - Inyecta Authorization: Bearer <token> en todas las solicitudes
- * - Expone CRUD del carrito: fetchCart, addItem, updateQty, removeItem, clearCart
- */
 export function CartProvider({ children }) {
   const { token, isLoggedIn } = useAuth();
 
@@ -18,41 +12,61 @@ export function CartProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Headers con Bearer si hay token
+  // Header autorization with token
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
-  // Wrapper de fetch autenticado (sin cookies)
+  // Fetch wrapper with auth headers
   const authedFetch = useCallback(
     async (url, options = {}) => {
-      const res = await fetch(url, {
-        ...options,
-        headers: {
-          "Content-Type": "application/json",
-          ...(options.headers || {}),
-          ...authHeaders,
-        },
-        // credentials: "omit", // explícito si quieres forzarlo
-      });
-      return res;
+      try {
+        const res = await fetch(url, {
+          ...options,
+          headers: {
+            "Content-Type": "application/json",
+            ...(options.headers || {}),
+            ...authHeaders,
+          },
+          // NO credentials included
+          // mode: "cors" // default
+        });
+        return res;
+      } catch (e) {
+        // Network / CORS error
+        const err = new Error("Network error / CORS");
+        err.cause = e;
+        throw err;
+      }
     },
     [token]
   );
 
-  // -----------------------------
-  // Normalización de estructura
-  // -----------------------------
+  // Normalize cart data from API to frontend format
   function normalizeCart(data) {
-    const items = (data?.items ?? []).map((row) => ({
-      id: String(row.ARTICLE_ID),                 // clave para PATCH/DELETE /items/<ARTICLE_ID>
-      articleId: String(row.ARTICLE_ID),
-      cartItemId: Number(row.CART_ITEM_ID ?? 0),  // opcional si lo usas
-      title: row.PROD_NAME ?? "Producto",
-      price: Number(row.PRICE ?? 0),
-      qty: Number(row.QUANTITY ?? 1),
-      lineTotal: Number(row.LINE_TOTAL ?? 0),
-    }));
+    const items = (data?.items ?? []).map((row) => {
+      const articleId = String(row.ARTICLE_ID);
+      const title = row.PROD_NAME ?? "Producto";
+      const price = Number(row.PRICE ?? 0);
+      const qty = Number(row.QUANTITY ?? 1);
+      const lineTotal = Number(row.LINE_TOTAL ?? price * qty);
 
-    // Puedes confiar en data.total o recalcular
+      // Image fallbacks: IMAGE_URL > IMAGE_KEY > placeholder
+      const image =
+        row.IMAGE_URL ??
+        row.IMAGE_KEY ??
+        "/placeholder.png";
+
+      return {
+        id: articleId,               // key for PATCH/DELETE /items/<ARTICLE_ID>
+        articleId,
+        cartItemId: Number(row.CART_ITEM_ID ?? 0),
+        title,
+        image,
+        price,
+        qty,
+        lineTotal,
+      };
+    });
+
     const subtotal = Number(
       data?.total ??
       items.reduce((s, it) => s + it.price * it.qty, 0)
@@ -62,9 +76,9 @@ export function CartProvider({ children }) {
     return { items, subtotal, count };
   }
 
-  // --------------------------------
-  // Operaciones expuestas (CRUD)
-  // --------------------------------
+// CRUD API calls
+
+  // GET /api/cart
   async function fetchCart() {
     if (!isLoggedIn || !token) {
       setCart({ items: [], subtotal: 0, count: 0 });
@@ -72,7 +86,6 @@ export function CartProvider({ children }) {
       setError("No hay sesión activa.");
       return;
     }
-
     setLoading(true);
     setError("");
     try {
@@ -101,7 +114,6 @@ export function CartProvider({ children }) {
   }
 
   // PATCH /api/cart/items/<product_ID>  { quantity }
-  // product_ID == ARTICLE_ID
   async function updateQty(articleId, quantity) {
     if (!token) throw new Error("No hay sesión activa.");
     const res = await authedFetch(`${API_URL}/cart/items/${articleId}`, {
@@ -135,6 +147,7 @@ export function CartProvider({ children }) {
     else {
       setCart({ items: [], subtotal: 0, count: 0 });
       setLoading(false);
+      setError("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
@@ -155,16 +168,14 @@ export function CartProvider({ children }) {
 
 export const useCart = () => useContext(CartCtx);
 
-// -----------------------------
-// Helpers de error legible
-// -----------------------------
+// Error helpers
 async function buildHttpError(res, label) {
   let detail = "";
   try {
     const json = await res.json();
     detail = json?.error || json?.message || JSON.stringify(json);
   } catch {
-    // ignora si no es JSON
+    // no JSON
   }
   const err = new Error(`${label} -> ${res.status}${detail ? ` | ${detail}` : ""}`);
   err.status = res.status;
@@ -174,6 +185,7 @@ async function buildHttpError(res, label) {
 
 function messageFromError(e, fallback) {
   if (!e) return fallback;
+  if (e.message === "Network error / CORS") return "Fallo de red/CORS (revisa CORS del backend y URL).";
   if (e.detail) return e.detail;
   if (e.message) return e.message;
   return fallback;
