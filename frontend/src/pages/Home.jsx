@@ -17,7 +17,7 @@ const Home = () => {
     const BASE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/';
     const API_URL = `${BASE_API_URL}${API_SUFFIX}`;
 
-    // --- Cargar productos ---
+// --- Cargar productos ---
     useEffect(() => {
         const fetchProducts = async () => {
             try {
@@ -29,14 +29,28 @@ const Home = () => {
 
                 const data = await response.json();
 
-                const products = data.items.map(item => ({
-                    name: item.prod_name,
-                    price: `$${item.price.toFixed(2)}`,
-                    stock: item.stock,
-                    image:
-                        item.image_url ||
-                        `https://placehold.co/400x300/F5F5DC/000000/png?text=${item.prod_name.substring(0, 10).trim()}`
-                }));
+                const products = data.items.map((item, index) => {
+                    // Convertir el número a string y buscar el punto decimal
+                    let priceString = String(item.price);
+                    let integerPart = priceString;
+
+                    // Si existe el punto decimal, toma solo la parte entera
+                    const decimalIndex = priceString.indexOf('.');
+                    if (decimalIndex !== -1) {
+                        integerPart = priceString.substring(0, decimalIndex);
+                    }
+
+                    return {
+                        id: item.external_article_id || item.product_code || `fallback-${index}`,
+                        external_article_id: item.external_article_id || item.product_code || `fallback-${index}`,
+                        name: item.prod_name,
+                        // MODIFICACIÓN: Usar la parte entera de la string del precio
+                        price: integerPart, 
+                        stock: item.stock,
+                        image: item.image_url || 
+                                `https://placehold.co/400x300/F5F5DC/000000/png?text=${item.prod_name.substring(0, 10).trim()}`
+                    };
+                });
 
                 setFeaturedProducts(products);
             } catch (error) {
@@ -116,13 +130,10 @@ const Home = () => {
                 </h2>
 
                 <div className={productGridClasses}>
-                    {featuredProducts.map((product, index) => (
+                    {featuredProducts.map((product) => (
                         <ProductCard
-                            key={product.name + index}
-                            name={product.name}
-                            price={product.price}
-                            stock={product.stock}
-                            image={product.image}
+                        key={product.id}
+                        product={product}
                         />
                     ))}
                 </div>
