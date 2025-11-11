@@ -6,11 +6,9 @@ from datetime import date, datetime
 def _coerce(value):
     # Converts types from oracledb to standard Python types
     if isinstance(value, oracledb.LOB):
-        #read clob
-        data = value.read()  
+        data = value.read()  # read CLOB
         try:
-            # close the LOB to free resources
-            value.close()          
+            value.close()      # free resources
         except Exception:
             pass
         return data
@@ -90,6 +88,7 @@ def list_products(
     department: Optional[str] = None,
     index_group: Optional[str] = None,
     sort: Optional[str] = None,  # "price_asc", "price_desc", "name_asc", "name_desc"
+    user_id: Optional[int] = None,  # personalización
 ) -> Dict:
 
     where_sql, params = _build_filters(
@@ -102,7 +101,7 @@ def list_products(
         index_group=index_group,
     )
 
-    # Order
+    # Orden natural (si no hay user_id)
     order_by = "ORDER BY prod_name"
     if sort == "price_asc":
         order_by = "ORDER BY price ASC, prod_name"
@@ -111,11 +110,81 @@ def list_products(
     elif sort == "name_desc":
         order_by = "ORDER BY prod_name DESC"
 
+    # Sin personalización → query original
+    if user_id is None:
+        sql = f"""
+        SELECT external_article_id, product_code, prod_name, price, stock, perceived_colour_master_name
+        FROM catalog
+        {where_sql}
+        {order_by}
+        OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
+        """
+        params["limit"] = limit
+        params["offset"] = offset
+
+        with pool.acquire() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, params)
+                rows = [_dict(cur, r) for r in cur.fetchall()]
+        return {"items": rows, "limit": limit, "offset": offset}
+
+    # ---- Personalización: con user_id ----
+    facet_w = {
+        "GENDER":        1.2,  # empuja Menswear/Ladieswear/Divided
+        "DEPARTMENT":    1.0,
+        "PRODUCT_GROUP": 0.9,
+        "SECTION":       0.6,
+        "GARMENT_GROUP": 0.5,
+        "COLOUR":        0.3,
+    }
+
+    # score primero y luego tu sort actual
+    personalized_order = "ORDER BY score_user DESC, " + order_by.replace("ORDER BY ", "")
+
+    # OJO: usar :p_uid (no :uid) para evitar ORA-01745 por colisión con UID
+    params["p_uid"] = int(user_id)
+
     sql = f"""
-    SELECT external_article_id, product_code, prod_name, price, stock, perceived_colour_master_name
-    FROM catalog
+    WITH prefs AS (
+      SELECT facet, key_text, weight
+      FROM user_pref_kv
+      WHERE user_id = :p_uid
+    )
+    SELECT
+      p.external_article_id,
+      p.product_code,
+      p.prod_name,
+      p.price,
+      p.stock,
+      p.perceived_colour_master_name,
+      -- Score agregado por afinidad a preferencias
+      NVL(gender_p.weight, 0) * {facet_w["GENDER"]} +
+      NVL(dept_p.weight,   0) * {facet_w["DEPARTMENT"]} +
+      NVL(pg_p.weight,     0) * {facet_w["PRODUCT_GROUP"]} +
+      NVL(sec_p.weight,    0) * {facet_w["SECTION"]} +
+      NVL(gg_p.weight,     0) * {facet_w["GARMENT_GROUP"]} +
+      NVL(col_p.weight,    0) * {facet_w["COLOUR"]}   AS score_user
+    FROM catalog p
+    -- GENDER: inferido y comparado con index_group_name (Menswear/Ladieswear/Divided)
+    LEFT JOIN prefs gender_p ON gender_p.facet='GENDER'
+                            AND gender_p.key_text = p.index_group_name
+    -- DEPARTMENT
+    LEFT JOIN prefs dept_p   ON dept_p.facet='DEPARTMENT'
+                            AND dept_p.key_text = p.department_name
+    -- PRODUCT_GROUP
+    LEFT JOIN prefs pg_p     ON pg_p.facet='PRODUCT_GROUP'
+                            AND pg_p.key_text = p.product_group_name
+    -- SECTION
+    LEFT JOIN prefs sec_p    ON sec_p.facet='SECTION'
+                            AND sec_p.key_text = p.section_name
+    -- GARMENT_GROUP
+    LEFT JOIN prefs gg_p     ON gg_p.facet='GARMENT_GROUP'
+                            AND gg_p.key_text = p.garment_group_name
+    -- COLOUR
+    LEFT JOIN prefs col_p    ON col_p.facet='COLOUR'
+                            AND col_p.key_text = p.perceived_colour_master_name
     {where_sql}
-    {order_by}
+    {personalized_order}
     OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
     """
 
@@ -175,8 +244,6 @@ def get_distinct_product_types(pool) -> list[dict]:
             cur.execute(sql)
             return [_dict(cur, r) for r in cur.fetchall()]
 
-        
-from typing import Dict, Optional
 
 def get_product(pool, external_article_id: str) -> Optional[Dict]:
     """
