@@ -1,7 +1,7 @@
 import React from 'react';
 import CustomButton from '../components/UI/CustomButton';
 import { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const Login = () => {
   const { login } = useAuth();
