@@ -107,26 +107,27 @@ def facets_product_types():
     items = svc.get_distinct_product_types(pool)
     return jsonify({"items": items}), 200
 
-@catalog_bp.get("/visual_agent")
+@catalog_bp.post("/visual_agent")
 def catalog_visual_agent():
     """
-    GET /catalog/visual_agent?ids=010...,011...&k=10
-    También acepta JSON en el body:
+    POST /catalog/visual_agent
+    Acepta tanto parámetros en el querystring como en el body JSON.
+
+    Ejemplo:
     {
       "ids": ["010...", "011..."],
       "k": 10
     }
     """
-    # 1. intentar querystring
+    # 1. intentar querystring (opcional)
     raw_ids = (request.args.get("ids") or "").strip()
-
     seed_ids = []
     k = request.args.get("k", default=None, type=int)
 
     if raw_ids:
         seed_ids = [s.strip() for s in raw_ids.split(",") if s.strip()]
     else:
-        # 2. si no venían en query, intentar body JSON
+        # 2. intentar body JSON
         data = request.get_json(silent=True) or {}
         body_ids = data.get("ids")
         if body_ids and isinstance(body_ids, list):
@@ -135,12 +136,14 @@ def catalog_visual_agent():
             k = data.get("k", 10)
 
     if not seed_ids:
-        return jsonify({"error": "Debes enviar ids en query (?ids=...) o en JSON {\"ids\": [...]}"}), 400
+        return jsonify({
+            "error": "Debes enviar ids en el cuerpo JSON ({'ids': [...]}) o en la query (?ids=...)"
+        }), 400
 
     if k is None:
         k = 10
 
-    # 3. pedir recomendaciones al servicio
+    # 3. pedir recomendaciones al modelo
     try:
         rec_ids = predict(seed_ids, k=k)
         rec_ids = [str(x) for x in rec_ids]
@@ -158,7 +161,7 @@ def catalog_visual_agent():
         if prod:
             items.append(prod)
 
-    # 5. imágenes
+    # 5. generar URLs de imágenes
     minutes = int(request.args.get("image_minutes", 30))
     mapping = par_for_external_ids(rec_ids, minutes=minutes, verify=True)
 

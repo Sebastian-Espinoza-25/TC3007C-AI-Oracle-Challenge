@@ -1,50 +1,78 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
+import {
+  DndContext,
+  closestCenter,
+  useSensors,
+  useSensor,
+  PointerSensor,
+  KeyboardSensor,
+} from '@dnd-kit/core';
 
 import Navbar from '../components/UI/Navbar';
 import SidebarAgent from '../components/UI/SidebarAgent';
 import Footer from '../components/UI/Footer';
 
 const DefaultLayout = () => {
-    // Estado de la sidebar
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const sidebarWidthClass = 'md:mr-96';
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [droppedProduct, setDroppedProduct] = useState(null);
 
-    // Toggle de apertura/cierre
-    const toggleSidebar = () => {
-        setIsSidebarOpen(prev => !prev);
+
+  // Sensores: se definen SIEMPRE, sin condicionales
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 5, // arrastra después de mover un poco
+            },
+        })
+    );
+
+
+    const handleDragEnd = (event) => {
+        const { over, active } = event;
+        if (over && over.id === 'sidebar-agent-droppable') {
+            console.log(`Card con ID: ${active.id} ha sido soltada en el Asistente.`);
+            setIsSidebarOpen(true); // abre el sidebar
+            setDroppedProduct(active.data.current); // 👈 importante: pasamos los datos del producto
+            console.log(`¡Producto ID ${active.id} soltado! Procesando...`);
+        }
     };
 
-    return (
-        <div className="flex flex-col min-h-screen">
-            {/* --- Navbar --- */}
-            <Navbar 
-                onToggleSidebar={toggleSidebar} 
-                isSidebarOpen={isSidebarOpen}
-            />
+  const outletContext = useMemo(
+    () => ({
+      isSidebarOpen,
+      setIsSidebarOpen,
+    }),
+    [isSidebarOpen]
+  );
 
-            {/* --- Contenido principal --- */}
-            <main
-                className={`flex-grow transition-margin duration-300 ease-in-out w-full ${
-                    isSidebarOpen ? sidebarWidthClass : ''
-                }`}
-            >
-                {/* Pasa el estado al Outlet */}
-                <div className="mt-16 p-4 w-full">
-                    <Outlet context={{ isSidebarOpen }} />
-                </div>
-            </main>
+  return (
+    <DndContext 
+        sensors={sensors} 
+        collisionDetection={closestCenter} 
+        onDragEnd={handleDragEnd}
+      measuring={{
+        droppable: {
+          offset: true,
+        },
+      }}
+    >
+      <div className="min-h-screen flex flex-col bg-gray-50 font-inter">
+        <Navbar
+            onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
+            isSidebarOpen={isSidebarOpen}
+        />
 
-            {/* --- Footer --- */}
-            <Footer isSidebarOpen={isSidebarOpen} />
+        <main className="flex-grow container mx-auto p-4 md:p-8">
+          <Outlet context={outletContext} />
+        </main>
 
-            {/* --- Sidebar Agent --- */}
-            <SidebarAgent 
-                isOpen={isSidebarOpen}
-                onClose={() => setIsSidebarOpen(false)}
-            />
-        </div>
-    );
+        <Footer />
+      </div>
+
+      <SidebarAgent isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} product={droppedProduct} />
+    </DndContext>
+  );
 };
 
 export default DefaultLayout;
