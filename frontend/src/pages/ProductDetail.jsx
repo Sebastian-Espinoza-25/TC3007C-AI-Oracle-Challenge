@@ -1,49 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Package, DollarSign, Loader2, ArrowLeft, Star, Palette, MessageCircle } from 'lucide-react';
+import { ShoppingCart, Package, Loader2, ArrowLeft, /*Star*/ Palette, MessageCircle } from 'lucide-react';
+import {useParams} from 'react-router-dom';
+import {useCart} from '../contexts/CartContext';
+import {toast} from 'react-toastify';
+import CustomButton from '../components/UI/CustomButton';
 
-// --- MOCK API DATA ---
-// Updated mock data to include the new 'perceived_colour_master_name' field
-const MOCK_PRODUCT_DATA = {
-    detail_desc: "Pointelle-knit tights in a soft cotton blend with an elasticated waist.",
-    external_article_id: "0291338014",
-    has_image: true,
-    image_key: "products/029/0291338014.jpg",
-    image_url: "https://objectstorage.us-chicago-1.oraclecloud.com/p/nQOV56WhiHtkMSI6xi_J0tENT_ybIaT0gCtLVSX2tAZ1RR9Nq1CoyGXpAmiusJQY/n/ax9g9kpob79x/b/Oracle-Catalog-Images/o/products/029/0291338014.jpg",
-    perceived_colour_master_name: "Blue", // NEW FIELD
-    price: 830.91,
-    prod_name: "2-p Pelin pointelle",
-    product_code: "291338",
-    stock: 64
-};
 
-// Mock data for visualization (Reviews and Recommendations)
-const MOCK_VISUALIZATION_DATA = {
-    reviewSummary: {
-        averageRating: 4.5,
-        totalReviews: 200,
-        ratings: [
-            { star: 5, count: 80, percentage: 40 },
-            { star: 4, count: 60, percentage: 30 },
-            { star: 3, count: 30, percentage: 15 },
-            { star: 2, count: 20, percentage: 10 },
-            { star: 1, count: 10, percentage: 5 }
-        ],
-    },
-    recommendations: [
-        { name: "Red Cocktail Dress", price: 120, image: "https://placehold.co/100x120/fecaca/991b1b?text=Red" },
-        { name: "Black Evening Gown", price: 150, image: "https://placehold.co/100x120/1f2937/d1d5db?text=Black" },
-        { name: "Blue Party Dress", price: 110, image: "https://placehold.co/100x120/bfdbfe/1d4ed8?text=Blue" }
-    ]
-};
 
 
 // Simulated function to fetch product data
+const API_URL = import.meta.env.VITE_API_URL;
 const fetchProduct = async (productId) => {
-    return new Promise(resolve => {
-        setTimeout(() => {
-            resolve(MOCK_PRODUCT_DATA);
-        }, 800); // Shorter delay for better user experience
-    });
+    try{
+        const response= await fetch(`${API_URL}/catalog/${productId}`);
+        if(!response.ok) throw new Error("Error fetching product");
+        return await response.json();
+    } catch (err){
+        console.error("Fetch error: ", err);
+        return null;
+    }
 };
 
 // Component to render a single recommendation card
@@ -55,19 +30,21 @@ const RecommendationCard = ({ name, price, image }) => (
     </div>
 );
 
-// Component to render the star rating bars
+/*
+Component to render the star rating bars
 const StarRatingBar = ({ star, percentage }) => (
-    <div className="flex items-center text-sm">
-        <span className="w-8 text-gray-600">{star} <Star className="w-3 h-3 inline fill-yellow-400 text-yellow-400" /></span>
-        <div className="flex-1 mx-2 h-2 bg-gray-200 rounded-full">
-            <div 
-                className="h-2 bg-indigo-500 rounded-full transition-all duration-500" 
-                style={{ width: `${percentage}%` }}
+   <div className="flex items-center text-sm">
+     <span className="w-8 text-gray-600">{star} <Star className="w-3 h-3 inline fill-yellow-400 text-yellow-400" /></span>
+    <div className="flex-1 mx-2 h-2 bg-gray-200 rounded-full">
+         <div 
+               className="h-2 bg-indigo-500 rounded-full transition-all duration-500" 
+               style={{ width: `${percentage}%` }}
             ></div>
         </div>
         <span className="w-10 text-right text-gray-600 font-medium">{percentage}%</span>
     </div>
-);
+); 
+*/
 
 
 const ProductDetail = () => {
@@ -77,7 +54,8 @@ const ProductDetail = () => {
     const [error, setError] = useState(null);
     const [cartMessage, setCartMessage] = useState(null); // For custom message box
     
-    const productId = '12345'; // Mock ID
+    const {productId} = useParams();
+    const {addItem} = useCart();
 
     useEffect(() => {
         const loadProduct = async () => {
@@ -148,16 +126,15 @@ const ProductDetail = () => {
         'Out of Stock';
 
     const handleAddToCart = () => {
-        console.log(`Added ${product.prod_name} to cart!`);
-        setCartMessage('Item added to cart successfully!');
-        setTimeout(() => setCartMessage(null), 3000); // Clear message after 3 seconds
-    };
+        addItem({ productId: product.external_article_id, qty: 1 });
+};
 
-    const reviews = MOCK_VISUALIZATION_DATA.reviewSummary;
-    const recommendations = MOCK_VISUALIZATION_DATA.recommendations;
+    //const reviews = MOCK_VISUALIZATION_DATA.reviewSummary;
+    //const recomendations = MOCK_VISUALIZATION_DATA.recommendations;
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8 font-['Inter']">
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center font-['Inter']">
+
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 
                 {/* Main Product Detail Section */}
@@ -188,7 +165,6 @@ const ProductDetail = () => {
                                 {product.prod_name}
                             </h1>
                             <div className="flex items-center mb-6 border-b pb-4">
-                                <DollarSign className="w-6 h-6 text-indigo-600 mr-2" />
                                 <span className="text-3xl font-bold text-indigo-700">
                                     {formattedPrice}
                                 </span>
@@ -226,71 +202,21 @@ const ProductDetail = () => {
                             </div>
                             
                             {/* Action Button */}
-                            <button
-                                onClick={handleAddToCart}
-                                disabled={!isAvailable}
-                                className={`w-full md:w-auto flex items-center justify-center px-8 py-4 text-lg font-bold rounded-xl transition duration-300 shadow-lg transform active:scale-95
-                                    ${isAvailable 
-                                        ? 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-xl' 
-                                        : 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                                    }`}
-                            >
-                                <ShoppingCart className="w-6 h-6 mr-3" />
-                                {isAvailable ? 'Add to Cart' : 'View Alternatives'}
-                            </button>
-
-                        </div>
-
-                    </div>
-                </div>
-
-                {/* 3. Customer Reviews Section (Data Visualization) */}
-                <div className="mt-10 bg-white rounded-xl shadow-2xl p-6 md:p-12">
-                    <h2 className="text-3xl font-extrabold text-gray-900 mb-6 flex items-center">
-                        <MessageCircle className="w-6 h-6 mr-3 text-indigo-600" /> Customer Reviews
-                    </h2>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 border-b pb-6 mb-6">
-                        {/* Rating Summary */}
-                        <div className="col-span-1 flex flex-col items-center justify-center border-r md:border-r-gray-200">
-                            <p className="text-7xl font-bold text-gray-900 leading-none">{reviews.averageRating}</p>
-                            <div className="flex mt-2">
-                                {[...Array(5)].map((_, i) => (
-                                    <Star 
-                                        key={i} 
-                                        className={`w-5 h-5 ${i < Math.floor(reviews.averageRating) ? 'fill-yellow-400 text-yellow-400' : (i === Math.floor(reviews.averageRating) && reviews.averageRating % 1 !== 0 ? 'fill-yellow-200 text-yellow-200' : 'text-gray-300')}`}
-                                    />
-                                ))}
-                            </div>
-                            <p className="text-sm text-gray-500 mt-2">{reviews.totalReviews} total reviews</p>
-                        </div>
-
-                        {/* Rating Distribution (Bar Chart Visualization) */}
-                        <div className="col-span-2 space-y-2">
-                            {reviews.ratings.map((item) => (
-                                <StarRatingBar 
-                                    key={item.star} 
-                                    star={item.star} 
-                                    percentage={item.percentage} 
+                            <div className='mt-8'>
+                                <CustomButton
+                                    text={isAvailable ? 'Añadir al carrito' : 'Out of Stock'}
+                                    style={'normal'}
+                                    extraStyles={`w-full md:w-auto cursor-pointer bg-indigo-600 text-center py-4 px-8 text-lg text-white rounded-xl font-bold 
+                                    hover:bg-indigo-700 hover:shadow-xl transition duration-200 
+                                    ${!isAvailable ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : ''}`}
+                                    onClick={isAvailable ? handleAddToCart : undefined}
                                 />
-                            ))}
+                            </div>
+
                         </div>
-                    </div>
 
-                    {/* AI Agent Recommendations Section */}
-                    <h2 className="text-2xl font-bold text-gray-900 mb-4 mt-8">
-                        AI Agent Recommendations
-                    </h2>
-                    <p className="text-gray-600 mb-4">
-                        Based on your interest in **{product.perceived_colour_master_name}** clothing, our agent suggests these items:
-                    </p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {recommendations.map((item, index) => (
-                            <RecommendationCard key={index} {...item} />
-                        ))}
                     </div>
-
-                </div>
+                </div>              
             </div>
 
             {/* Cart Confirmation Message (Non-alert replacement) */}

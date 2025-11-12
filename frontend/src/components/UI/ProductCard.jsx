@@ -4,7 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import CustomButton from './CustomButton';
 import imagen from '../../assets/react.svg';
 
-const ProductCard = ({ product }) => {
+const ProductCard = ({ product, onAddToCart}) => {
   // Validamos datos por seguridad
   if (!product) return null;
 
@@ -91,6 +91,7 @@ const ProductCard = ({ product }) => {
             text={buttonText}
             style={'normal'}
             extraStyles="w-full cursor-pointer bg-dark-500 text-center py-4 text-xl text-white rounded-lg hover:opacity-90 transition duration-200"
+            onClick={isInStock ? onAddToCart: undefined}
           />
         </div>
       </div>
