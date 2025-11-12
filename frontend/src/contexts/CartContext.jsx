@@ -1,12 +1,15 @@
 // src/contexts/CartContext.jsx
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useAuth } from "./AuthContext";
+import {toast} from 'react-toastify';
+
 
 const API_URL = import.meta.env.VITE_API_URL;
 const CartCtx = createContext(null);
 
 export function CartProvider({ children }) {
   const { token, isLoggedIn } = useAuth();
+
 
   const [cart, setCart] = useState({ items: [], subtotal: 0, count: 0 });
   const [loading, setLoading] = useState(true);
@@ -101,8 +104,15 @@ export function CartProvider({ children }) {
   }
 
   // POST /api/cart/items  { article_id, quantity }
-  async function addItem({ productId, qty = 1 }) {
-    if (!token) throw new Error("No hay sesión activa.");
+  async function addItem({ productId, qty = 1,onUnauthenticated }) {
+    if (!token){
+      toast.info("Debes iniciar sesión para agregar productos al carrito.", {icon: '🔒',});
+      setError("No hay sesión activa.");
+      if(onUnauthenticated) onUnauthenticated();
+      return;
+    }
+
+    //Active session
     const body = { article_id: String(productId), quantity: Number(qty) };
 
     const res = await authedFetch(`${API_URL}/cart/items`, {
@@ -111,6 +121,8 @@ export function CartProvider({ children }) {
     });
     if (!res.ok) throw await buildHttpError(res, "POST /cart/items");
     await fetchCart();
+
+    toast.success("Producto agregado al carrito.", { icon: '🛒' });
   }
 
   // PATCH /api/cart/items/<product_ID>  { quantity }

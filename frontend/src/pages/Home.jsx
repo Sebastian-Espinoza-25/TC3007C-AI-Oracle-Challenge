@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import ProductCard from '../components/UI/ProductCard';
 import heroBannerImage from '../assets/banner.jpg';
+import {useCart} from '../contexts/CartContext';
+import { useNavigate } from "react-router-dom";
 
 // Endpoint para la API
-const API_SUFFIX = '/catalog?limit=20&offset=725';
+const API_SUFFIX = '/catalog?limit=20&offset=725'; //
 
 const Home = () => {
     // Recibimos el estado de la sidebar desde el Outlet
@@ -12,6 +14,9 @@ const Home = () => {
 
     const [featuredProducts, setFeaturedProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
+
+    const {addItem}= useCart();
+    const navigate = useNavigate();
 
     // URL base (entorno o localhost)
     const BASE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/';
@@ -132,9 +137,18 @@ const Home = () => {
                 <div className={productGridClasses}>
                     {featuredProducts.map((product) => (
                         <ProductCard
-                        key={product.id}
-                        product={product}
+                            key={product.id}
+                            product={product}
+                            onAddToCart={() =>
+                                addItem({
+                                productId: product.id,
+                                qty: 1,
+                                onUnauthenticated: () =>
+                                    setTimeout(() => navigate("/auth/login"), 5000),
+                                })
+                            }
                         />
+
                     ))}
                 </div>
             </section>
