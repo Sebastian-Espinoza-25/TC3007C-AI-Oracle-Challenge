@@ -1,16 +1,12 @@
-# app/services/catalog_services.py
 from typing import Dict, Optional, List, Tuple
 import oracledb
 from datetime import date, datetime
 
 def _coerce(value):
-    # Converts types from oracledb to standard Python types
     if isinstance(value, oracledb.LOB):
-        #read clob
-        data = value.read()  
+        data = value.read()
         try:
-            # close the LOB to free resources
-            value.close()          
+            value.close()
         except Exception:
             pass
         return data
@@ -20,10 +16,7 @@ def _coerce(value):
 
 def _dict(cur, row) -> Dict:
     cols = [d[0].lower() for d in cur.description]
-    out = {}
-    for k, v in zip(cols, row):
-        out[k] = _coerce(v)
-    return out
+    return {k: _coerce(v) for k, v in zip(cols, row)}
 
 def _build_filters(
     q: Optional[str],
@@ -34,18 +27,14 @@ def _build_filters(
     department: Optional[str],
     index_group: Optional[str],
 ) -> Tuple[str, Dict]:
-    """
-    Construye WHERE dinámico y el diccionario de parámetros.
-    """
+    clauses, params = {}, {}
+
     clauses = []
-    params: Dict = {}
+    params = {}
 
-    # Search By Name
     if q:
-        clauses.append("LOWER(prod_name) LIKE LOWER('%' || :q || '%')")
+        clauses.append("LOWER(prod_name) LIKE '%' || LOWER(:q) || '%'")
         params["q"] = q
-
-    # Product types (IN (:pt0, :pt1, ...))
     if product_types:
         pt_binds = []
         for i, val in enumerate(product_types):
@@ -53,20 +42,14 @@ def _build_filters(
             pt_binds.append(f":{key}")
             params[key] = val
         clauses.append(f"product_type_name IN ({', '.join(pt_binds)})")
-
-    # Price range
     if min_price is not None:
         clauses.append("price >= :min_price")
         params["min_price"] = float(min_price)
     if max_price is not None:
         clauses.append("price <= :max_price")
         params["max_price"] = float(max_price)
-
-    # Stock > 0
     if in_stock:
         clauses.append("stock > 0")
-
-    # Department / Index group
     if department:
         clauses.append("LOWER(department_name) = LOWER(:department)")
         params["department"] = department
@@ -77,6 +60,67 @@ def _build_filters(
     where_sql = "WHERE " + " AND ".join(clauses) if clauses else ""
     return where_sql, params
 
+from typing import Dict, Optional, List, Tuple
+import oracledb
+from datetime import date, datetime
+
+def _coerce(value):
+    if isinstance(value, oracledb.LOB):
+        data = value.read()
+        try:
+            value.close()
+        except Exception:
+            pass
+        return data
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    return value
+
+def _dict(cur, row) -> Dict:
+    cols = [d[0].lower() for d in cur.description]
+    return {k: _coerce(v) for k, v in zip(cols, row)}
+
+def _build_filters(
+    q: Optional[str],
+    product_types: Optional[List[str]],
+    min_price: Optional[float],
+    max_price: Optional[float],
+    in_stock: Optional[bool],
+    department: Optional[str],
+    index_group: Optional[str],
+) -> Tuple[str, Dict]:
+    clauses, params = {}, {}
+
+    clauses = []
+    params = {}
+
+    if q:
+        clauses.append("LOWER(prod_name) LIKE '%' || LOWER(:q) || '%'")
+        params["q"] = q
+    if product_types:
+        pt_binds = []
+        for i, val in enumerate(product_types):
+            key = f"pt{i}"
+            pt_binds.append(f":{key}")
+            params[key] = val
+        clauses.append(f"product_type_name IN ({', '.join(pt_binds)})")
+    if min_price is not None:
+        clauses.append("price >= :min_price")
+        params["min_price"] = float(min_price)
+    if max_price is not None:
+        clauses.append("price <= :max_price")
+        params["max_price"] = float(max_price)
+    if in_stock:
+        clauses.append("stock > 0")
+    if department:
+        clauses.append("LOWER(department_name) = LOWER(:department)")
+        params["department"] = department
+    if index_group:
+        clauses.append("LOWER(index_group_name) = LOWER(:index_group)")
+        params["index_group"] = index_group
+
+    where_sql = "WHERE " + " AND ".join(clauses) if clauses else ""
+    return where_sql, params
 
 def list_products(
     pool,
@@ -89,7 +133,8 @@ def list_products(
     in_stock: Optional[bool] = None,
     department: Optional[str] = None,
     index_group: Optional[str] = None,
-    sort: Optional[str] = None,  # "price_asc", "price_desc", "name_asc", "name_desc"
+    sort: Optional[str] = None,
+    user_id: Optional[int] = None,
 ) -> Dict:
 
     where_sql, params = _build_filters(
@@ -102,7 +147,6 @@ def list_products(
         index_group=index_group,
     )
 
-    # Order
     order_by = "ORDER BY prod_name"
     if sort == "price_asc":
         order_by = "ORDER BY price ASC, prod_name"
@@ -111,23 +155,129 @@ def list_products(
     elif sort == "name_desc":
         order_by = "ORDER BY prod_name DESC"
 
-    sql = f"""
-    SELECT external_article_id, product_code, prod_name, price, stock, perceived_colour_master_name
-    FROM catalog
-    {where_sql}
-    {order_by}
-    OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
-    """
-
-    params["limit"] = limit
-    params["offset"] = offset
-
-    with pool.acquire() as conn:
-        with conn.cursor() as cur:
+    if user_id is None:
+        sql = f"""
+            SELECT external_article_id, product_code, prod_name, price, stock, perceived_colour_master_name
+            FROM catalog
+            {where_sql}
+            {order_by}
+            OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
+        """
+        params.update({"limit": limit, "offset": offset})
+        with pool.acquire() as conn, conn.cursor() as cur:
             cur.execute(sql, params)
             rows = [_dict(cur, r) for r in cur.fetchall()]
+        return {"items": rows, "limit": limit, "offset": offset}
 
+    params.update({
+        "p_uid": int(user_id),
+        "limit": limit,
+        "offset": offset,
+        "w_gender": 1.2,
+        "w_dept": 1.0,
+        "w_pg": 0.9,
+        "w_sec": 0.6,
+        "w_gg": 0.5,
+        "w_col": 0.3
+    })
+
+    secondary_order = order_by.replace("ORDER BY ", "")
+
+    sql = f"""
+        WITH prefs AS (
+            SELECT facet, UPPER(TRIM(key_text)) AS key_text, weight
+            FROM user_pref_kv
+            WHERE user_id = :p_uid
+        )
+        SELECT
+            p.external_article_id,
+            p.product_code,
+            p.prod_name,
+            p.price,
+            p.stock,
+            p.perceived_colour_master_name,
+            NVL(gender_p.weight,0) * CASE WHEN UPPER(TRIM(p.index_group_name))             = gender_p.key_text THEN :w_gender ELSE 0 END +
+            NVL(dept_p.weight,0)   * CASE WHEN UPPER(TRIM(p.department_name))              = dept_p.key_text   THEN :w_dept   ELSE 0 END +
+            NVL(pg_p.weight,0)     * CASE WHEN UPPER(TRIM(p.product_group_name))           = pg_p.key_text     THEN :w_pg     ELSE 0 END +
+            NVL(sec_p.weight,0)    * CASE WHEN UPPER(TRIM(p.section_name))                 = sec_p.key_text    THEN :w_sec    ELSE 0 END +
+            NVL(gg_p.weight,0)     * CASE WHEN UPPER(TRIM(p.garment_group_name))           = gg_p.key_text     THEN :w_gg     ELSE 0 END +
+            NVL(col_p.weight,0)    * CASE WHEN UPPER(TRIM(p.perceived_colour_master_name)) = col_p.key_text    THEN :w_col    ELSE 0 END
+            AS score_user
+        FROM catalog p
+        LEFT JOIN prefs gender_p ON gender_p.facet='GENDER'
+        LEFT JOIN prefs dept_p   ON dept_p.facet='DEPARTMENT'
+        LEFT JOIN prefs pg_p     ON pg_p.facet='PRODUCT_GROUP'
+        LEFT JOIN prefs sec_p    ON sec_p.facet='SECTION'
+        LEFT JOIN prefs gg_p     ON gg_p.facet='GARMENT_GROUP'
+        LEFT JOIN prefs col_p    ON col_p.facet='COLOUR'
+        {where_sql}
+        ORDER BY
+            score_user DESC,
+            ORA_HASH(p.external_article_id, 4096, :p_uid),
+            {secondary_order}
+        OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
+    """
+
+    with pool.acquire() as conn, conn.cursor() as cur:
+        cur.execute(sql, params)
+        rows = [_dict(cur, r) for r in cur.fetchall()]
     return {"items": rows, "limit": limit, "offset": offset}
+
+def count_products(
+    pool,
+    q: Optional[str],
+    product_types: Optional[List[str]] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    in_stock: Optional[bool] = None,
+    department: Optional[str] = None,
+    index_group: Optional[str] = None,
+) -> int:
+    where_sql, params = _build_filters(
+        q=q,
+        product_types=product_types,
+        min_price=min_price,
+        max_price=max_price,
+        in_stock=in_stock,
+        department=department,
+        index_group=index_group,
+    )
+    sql = f"SELECT COUNT(*) FROM catalog {where_sql}"
+    with pool.acquire() as conn, conn.cursor() as cur:
+        cur.execute(sql, params)
+        return int(cur.fetchone()[0])
+
+def get_distinct_product_types(pool) -> list[dict]:
+    sql = """
+        SELECT
+            INITCAP(LOWER(TRIM(product_type_name))) AS product_type_name,
+            COUNT(*) AS cnt
+        FROM catalog
+        WHERE product_type_name IS NOT NULL
+        GROUP BY INITCAP(LOWER(TRIM(product_type_name)))
+        ORDER BY product_type_name
+    """
+    with pool.acquire() as conn, conn.cursor() as cur:
+        cur.execute(sql)
+        return [_dict(cur, r) for r in cur.fetchall()]
+
+def get_product(pool, external_article_id: str) -> Optional[Dict]:
+    sql = """
+        SELECT
+            external_article_id,
+            product_code,
+            prod_name,
+            price,
+            stock,
+            detail_desc,
+            perceived_colour_master_name
+        FROM catalog
+        WHERE external_article_id = :external_article_id
+    """
+    with pool.acquire() as conn, conn.cursor() as cur:
+        cur.execute(sql, {"external_article_id": external_article_id})
+        row = cur.fetchone()
+        return _dict(cur, row) if row else None
 
 
 def count_products(
@@ -150,52 +300,38 @@ def count_products(
         index_group=index_group,
     )
     sql = f"SELECT COUNT(*) FROM catalog {where_sql}"
-    with pool.acquire() as conn:
-        with conn.cursor() as cur:
-            cur.execute(sql, params)
-            return int(cur.fetchone()[0])
-
+    with pool.acquire() as conn, conn.cursor() as cur:
+        cur.execute(sql, params)
+        return int(cur.fetchone()[0])
 
 def get_distinct_product_types(pool) -> list[dict]:
-    """
-    Returns normalized product types (capitalized) with their counts.
-    Example: {"PRODUCT_TYPE_NAME": "Dress", "CNT": 10362}
-    """
     sql = """
-    SELECT
-        INITCAP(LOWER(TRIM(product_type_name))) AS product_type_name,
-        COUNT(*) AS cnt
-    FROM catalog
-    WHERE product_type_name IS NOT NULL
-    GROUP BY INITCAP(LOWER(TRIM(product_type_name)))
-    ORDER BY product_type_name
+        SELECT
+            INITCAP(LOWER(TRIM(product_type_name))) AS product_type_name,
+            COUNT(*) AS cnt
+        FROM catalog
+        WHERE product_type_name IS NOT NULL
+        GROUP BY INITCAP(LOWER(TRIM(product_type_name)))
+        ORDER BY product_type_name
     """
-    with pool.acquire() as conn:
-        with conn.cursor() as cur:
-            cur.execute(sql)
-            return [_dict(cur, r) for r in cur.fetchall()]
-
-        
-from typing import Dict, Optional
+    with pool.acquire() as conn, conn.cursor() as cur:
+        cur.execute(sql)
+        return [_dict(cur, r) for r in cur.fetchall()]
 
 def get_product(pool, external_article_id: str) -> Optional[Dict]:
-    """
-    Obtains detailed information about a product by its external_article_id.
-    """
     sql = """
-    SELECT
-      external_article_id,
-      product_code,
-      prod_name,
-      price,
-      stock,
-      detail_desc,
-      perceived_colour_master_name
-    FROM catalog
-    WHERE external_article_id = :external_article_id
+        SELECT
+            external_article_id,
+            product_code,
+            prod_name,
+            price,
+            stock,
+            detail_desc,
+            perceived_colour_master_name
+        FROM catalog
+        WHERE external_article_id = :external_article_id
     """
-    with pool.acquire() as conn:
-        with conn.cursor() as cur:
-            cur.execute(sql, {"external_article_id": external_article_id})
-            row = cur.fetchone()
-            return _dict(cur, row) if row else None
+    with pool.acquire() as conn, conn.cursor() as cur:
+        cur.execute(sql, {"external_article_id": external_article_id})
+        row = cur.fetchone()
+        return _dict(cur, row) if row else None

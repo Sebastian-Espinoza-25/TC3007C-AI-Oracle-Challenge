@@ -38,6 +38,8 @@ def list_catalog():
     index_group = request.args.get("index_group")
     sort = request.args.get("sort")  # price_asc|price_desc|name_asc|name_desc
 
+    user_id = request.args.get("uid", type=int)
+
     pool = current_app.config["DB_POOL"]
     data = svc.list_products(
         pool,
@@ -51,6 +53,7 @@ def list_catalog():
         department=department or None,
         index_group=index_group or None,
         sort=sort or None,
+        user_id=user_id,
     )
     total = svc.count_products(
         pool,
