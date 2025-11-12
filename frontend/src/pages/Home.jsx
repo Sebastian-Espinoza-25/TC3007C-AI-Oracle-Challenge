@@ -4,6 +4,7 @@ import ProductCard from '../components/UI/ProductCard';
 import heroBannerImage from '../assets/banner.jpg';
 import {useCart} from '../contexts/CartContext';
 import { useNavigate } from "react-router-dom";
+import Loader from '../components/UI/Loader';
 
 // Endpoint para la API
 const API_SUFFIX = '/catalog?limit=20&offset=725'; //
@@ -26,6 +27,7 @@ const Home = () => {
     useEffect(() => {
         const fetchProducts = async () => {
             try {
+                setIsLoading(true);
                 const response = await fetch(API_URL);
 
                 if (!response.ok) {
@@ -84,8 +86,10 @@ const Home = () => {
     // --- Estados de carga ---
     if (isLoading) {
         return (
-            <div className={mainContentClasses + ' text-center text-2xl mt-20'}>
-                <p>Cargando productos...</p>
+            <div className={mainContentClasses}>
+                <Loader 
+                    message= "Estamos preparando algo asombroso..."
+                />
             </div>
         );
     }

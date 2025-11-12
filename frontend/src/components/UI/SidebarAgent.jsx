@@ -1,9 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { FiX, FiRefreshCcw, FiTarget } from 'react-icons/fi';
+import { FiX, FiRefreshCcw, FiTarget, FiShoppingCart } from 'react-icons/fi';
 import { useDroppable } from '@dnd-kit/core';
+import {useCart} from '../../contexts/CartContext';
+import CustomButton from '../../components/UI/CustomButton';
+import Loader from '../../components/UI/Loader';
+import { useNavigate } from 'react-router-dom';
+
 
 // --- Modal simple para mostrar recomendaciones ---
-const RecommendationsModal = ({ isOpen, onClose, items }) => {
+const RecommendationsModal = ({ isOpen, onClose, items, addItem }) => {
     if (!isOpen || !items || items.length === 0) return null;
 
     return (
@@ -13,21 +18,41 @@ const RecommendationsModal = ({ isOpen, onClose, items }) => {
                     Recomendaciones para ti
                 </h2>
 
-                <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                <div className="space-y-4 max-h-[500px] overflow-y-auto">
                     {items.map((item) => (
                         <div
                             key={item.external_article_id}
-                            className="border border-gray-200 rounded-xl p-4 flex items-center justify-between hover:bg-violet-50 transition"
+                            className="border border-gray-200 rounded-xl p-4 flex items-center justify-between hover:bg-violet-50 transition shadow-sm"
                         >
-                            <div>
+                            {/*Product Image */}
+                            <img
+                                src={item.image_url || `https://placehold.co/80x80/F5F5DC/000000?text=${item.prod_name.substring(0, 6)}`}
+                                alt={item.prod_name}
+                                className="w-20 h-20 object-cover rounded-lg mr-4 flex-shrink-0"
+                            />
+
+                            {/*Product INfo */}
+                            <div className="flex-1">
                                 <h3 className="text-lg font-semibold text-gray-800">{item.prod_name}</h3>
                                 <p className="text-sm text-gray-600">
-                                    Color: {item.perceived_colour_master_name}
+                                    Color: {item.perceived_colour_master_name || 'N/A'}
+                                </p>
+                                <p className="text-violet-700 font-bold mt-1">
+                                    ${Number(item.price).toFixed(2)}
                                 </p>
                             </div>
-                            <span className="font-bold text-violet-700">
-                                ${item.price.toFixed(2)}
-                            </span>
+
+                            {/*Add to cart */}
+                            <CustomButton
+                                text={<FiShoppingCart size={20} />}
+                                onClick={() =>
+                                    addItem({
+                                        productId: item.external_article_id,
+                                        qty: 1,
+                                    })
+                                }
+                                className="!p-3 ml-4 rounded-full" // sobrescribimos padding si tu botón es más grande
+                            />
                         </div>
                     ))}
                 </div>
@@ -49,9 +74,13 @@ const SidebarAgent = ({ isOpen, onClose, product }) => {
     const { isOver, setNodeRef } = useDroppable({
         id: 'sidebar-agent-droppable',
     });
+    const navigate= useNavigate();
+    
+    const {addItem}= useCart();
 
     const [recommendations, setRecommendations] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const[isLoadingRecommendations, setIsLoadingRecommendations]= useState(false);
 
     const BASE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/';
     const ENDPOINT = `${BASE_API_URL}/catalog/visual_agent`;
@@ -63,6 +92,7 @@ const SidebarAgent = ({ isOpen, onClose, product }) => {
 
             console.log(`🔍 Analizando producto ID: ${product.id}...`);
             try {
+                setIsLoadingRecommendations(true);
                 const response = await fetch(ENDPOINT, {
                     method: 'POST',
                     headers: {
@@ -85,6 +115,8 @@ const SidebarAgent = ({ isOpen, onClose, product }) => {
                 setIsModalOpen(true);
             } catch (error) {
                 console.error(' Error obteniendo recomendaciones:', error);
+            }finally{
+                setIsLoadingRecommendations(false);
             }
         };
 
@@ -102,6 +134,16 @@ const SidebarAgent = ({ isOpen, onClose, product }) => {
 
     return (
         <>
+            {/* Loader */}
+            { isLoadingRecommendations &&(
+                <div className='fixed inset-0 flex items-center justify-center bg-black/40 z-[998]'>
+                    <Loader
+                        message= "Buscando recomendaciones mágicas"
+                        textColor="#FFFFFF"
+                    />
+                </div>
+            )}
+
             {/* Sidebar */}
             <div
                 className={`fixed top-0 right-0 w-full md:w-96 h-screen bg-white shadow-2xl flex flex-col z-50 transition-transform duration-300 ease-in-out transform ${
@@ -180,6 +222,16 @@ const SidebarAgent = ({ isOpen, onClose, product }) => {
                 isOpen={isModalOpen}
                 items={recommendations}
                 onClose={() => setIsModalOpen(false)}
+                addItem={(params) =>
+                    addItem({
+                    ...params,
+                    onUnauthenticated: () => {
+                        setIsModalOpen(false);
+                        onClose();
+                        setTimeout(() => navigate("/auth/login"), 3000);
+                    },
+                    })
+                }
             />
         </>
     );

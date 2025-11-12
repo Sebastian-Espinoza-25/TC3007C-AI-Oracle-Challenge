@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Package, Loader2, ArrowLeft, /*Star*/ Palette, MessageCircle } from 'lucide-react';
 import {useParams} from 'react-router-dom';
 import {useCart} from '../contexts/CartContext';
-import {toast} from 'react-toastify';
 import CustomButton from '../components/UI/CustomButton';
-
+import { useNavigate } from 'react-router-dom';
 
 
 
@@ -56,6 +55,7 @@ const ProductDetail = () => {
     
     const {productId} = useParams();
     const {addItem} = useCart();
+    const navigate = useNavigate();
 
     useEffect(() => {
         const loadProduct = async () => {
@@ -126,7 +126,15 @@ const ProductDetail = () => {
         'Out of Stock';
 
     const handleAddToCart = () => {
-        addItem({ productId: product.external_article_id, qty: 1 });
+        addItem({ 
+            productId: product.external_article_id, 
+            qty: 1, 
+            onUnauthenticated:()=> {
+                setTimeout(()=> navigate("/auth/login"),3000)
+
+            },
+        
+        });
 };
 
     //const reviews = MOCK_VISUALIZATION_DATA.reviewSummary;
