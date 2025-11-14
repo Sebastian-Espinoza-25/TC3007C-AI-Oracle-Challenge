@@ -203,7 +203,6 @@ def build_or_load_chroma(docs: List[Document], persist_dir: str) -> Chroma:
     else:
         print("[chroma] Creando índice nuevo...")
         db = Chroma.from_documents(documents=docs, embedding=get_embeddings(), persist_directory=persist_dir)
-        db.persist()
         return db
 
 
@@ -245,7 +244,7 @@ def build_qa_chain(vectorstore: Chroma) -> RetrievalQA:
     ])
 
     llm = get_llm()
-    retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 5})
+    retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 50})
     qa_chain = RetrievalQA.from_chain_type(
         llm=llm,
         retriever=retriever,
@@ -458,7 +457,7 @@ class PromoRAG:
 
 def main():
     rag = PromoRAG()
-    rag.initialize(rebuild_index=False)  # pon True si cambiaste data y quieres reindexar
+    rag.initialize(rebuild_index=True)  # pon True si cambiaste data y quieres reindexar
     # Pruebas rápidas
     tests = [
         (500, "BBVA"),
