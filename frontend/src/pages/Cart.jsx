@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { CartProvider, useCart } from "../contexts/CartContext";
+import { useNavigate } from "react-router-dom";
 import Spinner from "../components/UI/Spinner";
 
 const Price = ({ value }) => <span>${value?.toFixed(2) ?? "0.00"}</span>;
@@ -85,6 +86,7 @@ function CartItem({ item }) {
 function CartSummary() {
   const { cart, clearCart } = useCart();
   const [busy, setBusy] = useState(false);
+  const navigate = useNavigate();
 
   const onClear = async () => { setBusy(true); await clearCart(); setBusy(false); };
   const shipping = 0; // Gratis en demo/UI
@@ -102,7 +104,11 @@ function CartSummary() {
         <div className="flex items-center justify-between text-base font-semibold"><span>Total</span><span><Price value={total} /></span></div>
       </div>
       <div className="mt-4 flex flex-col gap-3">
-        <button disabled={cart.items.length === 0 || busy} className="h-11 rounded-xl bg-indigo-700 text-white disabled:cursor-not-allowed disabled:opacity-50">Proceder al Pago</button>
+        <button
+          disabled={cart.items.length === 0 || busy}
+          onClick={() => { if (cart.items.length > 0 && !busy) navigate('/checkout'); }}
+          className="h-11 rounded-xl bg-indigo-700 text-white disabled:cursor-not-allowed disabled:opacity-50"
+        >Ir a Checkout</button>
         <button onClick={onClear} disabled={cart.items.length === 0 || busy} className="h-11 rounded-xl border">Vaciar carrito</button>
         {busy ? <div className="text-center"><Spinner inline text="Procesando" /></div> : null}
       </div>

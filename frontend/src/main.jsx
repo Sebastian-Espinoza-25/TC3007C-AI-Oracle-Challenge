@@ -15,6 +15,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
 import Cart from './pages/Cart';
+import Checkout from './pages/Checkout';
 import Logout from './pages/Logout';
 import Atelier from './pages/Atelier';
 import ProductDetail from './pages/ProductDetail';
@@ -27,6 +28,7 @@ const router = createBrowserRouter([
     children: [
       {index: true, element: <Home/>},
       {path: "cart", element: <Cart/>},
+      {path: "checkout", element: <Checkout/>},
       {path: "detail/:productId", element: <ProductDetail/>},
       {path: "auth/signup", element: <SignUp/>},
       {path: "auth/logout", element: <Logout/>},
