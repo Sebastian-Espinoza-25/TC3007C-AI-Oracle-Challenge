@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { CartProvider, useCart } from "../contexts/CartContext";
+import { useNavigate } from "react-router-dom";
 import Spinner from "../components/UI/Spinner";
 
 const Price = ({ value }) => <span>${value?.toFixed(2) ?? "0.00"}</span>;
@@ -60,7 +61,7 @@ function CartItem({ item }) {
   const remove = async () => { setBusy(true); await removeItem(item.id); setBusy(false); };
 
   return (
-    <div className="grid grid-cols-[80px,1fr,120px] gap-4 rounded-2xl border p-4">
+    <div className="grid grid-cols-[80px,1fr,120px] gap-4 rounded-xl overflow-hidden bg-white shadow-lg hover:shadow-xl transition-all duration-200 p-4">
       <img src={item.image} alt={item.title} className="h-20 w-20 rounded object-cover" />
       <div>
         <div className="font-medium">{item.title}</div>
@@ -69,7 +70,7 @@ function CartItem({ item }) {
           <button disabled={busy} onClick={() => changeQty(-1)} className="h-8 w-8 rounded-full border">-</button>
           <input className="h-8 w-14 rounded border px-2 text-center" value={item.qty} onChange={e => setQty(e.target.value)} />
           <button disabled={busy} onClick={() => changeQty(1)} className="h-8 w-8 rounded-full border">+</button>
-          <button disabled={busy} onClick={remove} className="ml-4 text-red-600 hover:underline">Quitar</button>
+          <button disabled={busy} onClick={remove} className="ml-4 text-secondary-400 hover:underline">Quitar</button>
         </div>
       </div>
       <div className="text-right">
@@ -85,6 +86,7 @@ function CartItem({ item }) {
 function CartSummary() {
   const { cart, clearCart } = useCart();
   const [busy, setBusy] = useState(false);
+  const navigate = useNavigate();
 
   const onClear = async () => { setBusy(true); await clearCart(); setBusy(false); };
   const shipping = 0; // Gratis en demo/UI
@@ -92,7 +94,7 @@ function CartSummary() {
   const total = cart.subtotal + shipping + taxes;
 
   return (
-    <aside className="rounded-2xl border p-6 w-full">
+    <aside className="rounded-xl overflow-hidden bg-white shadow-lg hover:shadow-xl transition-all duration-200 p-6 w-full">
       <h3 className="mb-4 text-lg font-semibold">Resumen del pedido</h3>
       <div className="space-y-2 text-sm">
         <div className="flex items-center justify-between"><span>Subtotal</span><span className="font-medium"><Price value={cart.subtotal} /></span></div>
@@ -102,7 +104,11 @@ function CartSummary() {
         <div className="flex items-center justify-between text-base font-semibold"><span>Total</span><span><Price value={total} /></span></div>
       </div>
       <div className="mt-4 flex flex-col gap-3">
-        <button disabled={cart.items.length === 0 || busy} className="h-11 rounded-xl bg-indigo-700 text-white disabled:cursor-not-allowed disabled:opacity-50">Proceder al Pago</button>
+        <button
+          disabled={cart.items.length === 0 || busy}
+          onClick={() => { if (cart.items.length > 0 && !busy) navigate('/checkout'); }}
+          className="h-11 rounded-xl bg-primary-500 text-white disabled:cursor-not-allowed disabled:opacity-50"
+        >Ir a Checkout</button>
         <button onClick={onClear} disabled={cart.items.length === 0 || busy} className="h-11 rounded-xl border">Vaciar carrito</button>
         {busy ? <div className="text-center"><Spinner inline text="Procesando" /></div> : null}
       </div>

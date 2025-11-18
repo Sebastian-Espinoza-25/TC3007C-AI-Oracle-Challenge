@@ -33,7 +33,7 @@ const DefaultLayout = () => {
         if (over && over.id === 'sidebar-agent-droppable') {
             console.log(`Card con ID: ${active.id} ha sido soltada en el Asistente.`);
             setIsSidebarOpen(true); // abre el sidebar
-            setDroppedProduct(active.data.current); // 👈 importante: pasamos los datos del producto
+            setDroppedProduct(active.data.current);
             console.log(`¡Producto ID ${active.id} soltado! Procesando...`);
         }
     };
@@ -63,7 +63,7 @@ const DefaultLayout = () => {
             isSidebarOpen={isSidebarOpen}
         />
 
-        <main className="flex-grow container mx-auto p-4 md:p-8">
+        <main className="flex-grow container mt-8 mx-auto p-4 md:p-8">
           <Outlet context={outletContext} />
         </main>
 

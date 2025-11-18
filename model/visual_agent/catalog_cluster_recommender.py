@@ -58,6 +58,10 @@ class ClusterRecommender:
     ngram_range: Tuple[int, int] = (1, 2)
     svd_components: int = 128
 
+      # NUEVO: pesos por bloque
+    text_weight: float = 2.0     
+    cat_weight: float = 1.0
+
     # Clustering / aleatoriedad
     random_state: int = 42
     sample_for_k: int = 10000
@@ -77,14 +81,13 @@ class ClusterRecommender:
     # Construcción del pipeline
     # -------------------------
     def _build_pipeline(self, df: pd.DataFrame) -> Pipeline:
-        # Defensa doble: asegura __text_all__
+    # Defensa doble: asegura __text_all__
         if "__text_all__" not in df.columns:
             df["__text_all__"] = (
                 df.get("prod_name", "").fillna("").astype(str) + " " +
                 df.get("detail_desc", "").fillna("").astype(str)
             )
 
-        # desde aquí, FUERA del if
         text_features = Pipeline(steps=[
             ("tfidf", TfidfVectorizer(min_df=self.min_df, ngram_range=self.ngram_range))
         ])
@@ -100,12 +103,24 @@ class ClusterRecommender:
         if cat_existing:
             transformers.append(("cat", ohe, cat_existing))
 
-        coltx = ColumnTransformer(transformers=transformers, remainder="drop", sparse_threshold=1.0)
+        # Pesos por bloque
+        transformer_weights = {"text": self.text_weight}
+        if cat_existing:
+            transformer_weights["cat"] = self.cat_weight
+
+        coltx = ColumnTransformer(
+            transformers=transformers,
+            remainder="drop",
+            sparse_threshold=1.0,
+            transformer_weights=transformer_weights,
+        )
+
         pipe = Pipeline(steps=[
             ("features", coltx),
             ("svd", TruncatedSVD(n_components=self.svd_components, random_state=self.random_state))
         ])
         return pipe
+
 
     # ---------
     # Entrenar
@@ -269,7 +284,7 @@ class ClusterRecommender:
 
         cols = ["article_id","product_code","prod_name","garment_group_name",
                 "section_name","index_name","perceived_colour_master_name",
-                "graphical_appearance_name","__sim__"]
+                "graphical_appearance_name","__text_all__","__sim__"]
         cols = [c for c in cols if c in out.columns]
         return out[cols]
 
@@ -357,7 +372,7 @@ class ClusterRecommender:
 
         cols = ["article_id","product_code","prod_name","garment_group_name",
                 "section_name","index_name","perceived_colour_master_name",
-                "graphical_appearance_name","__sim__"]
+                "graphical_appearance_name","__text_all__","__sim__"]
         return out.sort_values("__sim__", ascending=False).head(k)[
             [c for c in cols if c in out.columns]
         ]

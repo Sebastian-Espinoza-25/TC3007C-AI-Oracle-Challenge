@@ -21,6 +21,7 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
     const isAuthPage = currentPath.startsWith('/auth');
     // Route logic: Hide only the AI assistant button on cart pages
     const isCartPage = currentPath.startsWith('/cart');
+    const isCheckoutPage = currentPath.startsWith('/checkout');
     
     const [isMenuOpen, setIsMenuOpen] = useState(false); // Default to closed
     
@@ -208,8 +209,8 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
                         isLoggedIn ? <LoggedInLinks /> : <LoggedOutButtons />
                     )}
                     
-                    {/* Render AgentButton only if NOT /auth and NOT /cart pages */}
-                    {!(isAuthPage || isCartPage) && <AgentButton />}
+                    {/* Render AgentButton only if NOT /auth and NOT /cart or /checkout pages */}
+                    {!(isAuthPage || isCartPage || isCheckoutPage) && <AgentButton />}
                 </div>
                 
                 {/* 4. Mobile Logo (Centered) */}
