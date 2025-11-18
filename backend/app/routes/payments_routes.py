@@ -6,42 +6,47 @@ from app.services.payments_services import (
     confirm_payment,
     list_payment_methods,
     add_payment_method,
-    get_invoices
+    get_invoices,
 )
 
-payments_bp = Blueprint("payment_bp", __name__, url_prefix="/payment")
+payments_bp = Blueprint("payment_bp", __name__)
+
 
 # Create a Payment Intent
 @payments_bp.post("/intent")
 @jwt_required()
 def create_intent():
-    data = request.json
     user_id = get_jwt_identity()
     pool = current_app.config["DB_POOL"]
 
-    # Validate required field
-    if "amount" not in data:
-        return jsonify({"error": "Missing amount field"}), 400
+    try:
+        # amount from frontend is ignored; DB cart total is used.
+        client_secret = create_payment_intent(pool, user_id)
+        return jsonify({"client_secret": client_secret}), 201
 
-    client_secret = create_payment_intent(pool, user_id, data["amount"])
-    return jsonify({"client_secret": client_secret}), 201
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    except Exception:
+        current_app.logger.exception("Error creating payment intent")
+        return jsonify({"error": "Internal server error"}), 500
 
 
-# Webhook Stripe
+# Stripe Webhook
 @payments_bp.post("/webhook")
 def webhook():
     payload = request.data
     sig_header = request.headers.get("Stripe-Signature")
-    event = None
 
     try:
         event = stripe.Webhook.construct_event(
-            payload, sig_header, current_app.config["STRIPE_WEBHOOK_SECRET"]
+            payload,
+            sig_header,
+            current_app.config["STRIPE_WEBHOOK_SECRET"],
         )
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
-    # Confirm successful payment
     if event["type"] == "payment_intent.succeeded":
         pool = current_app.config["DB_POOL"]
         confirm_payment(pool, event["data"]["object"]["id"], event)
