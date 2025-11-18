@@ -42,7 +42,6 @@ const router = createBrowserRouter([
 ]);
 
 createRoot(document.getElementById('root')).render(
-  <StrictMode>
     <AuthProvider>
       <CartProvider>
         <RouterProvider router={router}/>
@@ -65,6 +64,5 @@ createRoot(document.getElementById('root')).render(
           progressStyle= {{background: '#24217A'}}
         />
       </CartProvider>
-    </AuthProvider>
-  </StrictMode>,
+    </AuthProvider>,
 );
