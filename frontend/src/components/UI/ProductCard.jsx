@@ -89,7 +89,7 @@ const ProductCard = ({ product, onAddToCart}) => {
         <div className="mt-2">
           <CustomButton
             text={buttonText}
-            style={'normal'}
+            style={'secondary'}
             extraStyles="w-full cursor-pointer bg-dark-500 text-center py-4 text-xl text-white rounded-lg hover:opacity-90 transition duration-200"
             onClick={isInStock ? onAddToCart: undefined}
           />

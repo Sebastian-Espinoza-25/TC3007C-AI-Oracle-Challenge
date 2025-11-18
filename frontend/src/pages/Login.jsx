@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import CustomButton from '../components/UI/CustomButton';
 import { useAuth } from '../contexts/AuthContext';
-// 🟢 NUEVO: importar toastify
 import { toast } from 'react-toastify';
 
 const Login = () => {
@@ -27,7 +26,6 @@ const Login = () => {
       const data = await response.json();
       login(data.access_token, data.user);
 
-
       toast.success('Inicio de sesión exitoso. Redirigiendo a la página principal...', {
         icon: '✅',
       });
@@ -45,31 +43,37 @@ const Login = () => {
   };
 
   return (
-    <div className="flex items-center justify-center h-[100vh] bg-gray-50 px-6">
-      <div className="bg-white shadow-2xl rounded-2xl p-16 w-full max-w-2xl">
-        <h2 className="text-4xl font-bold text-center mb-10">
+  <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 px-6">
+      <div className="allure-card w-full max-w-2xl">
+
+        <h2 className="allure-title">
           Iniciar sesión
         </h2>
+
         <form onSubmit={handleLogin} className="flex flex-col gap-8 text-lg">
+
           <input
             type="email"
             placeholder="Correo electrónico"
-            className="border p-4 rounded text-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="allure-input"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
+
           <input
             type="password"
             placeholder="Contraseña"
-            className="border p-4 rounded text-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="allure-input"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
+
           <CustomButton text="Entrar" type="submit" />
         </form>
-        <p className="text-medium text-center mt-6">
+
+        <p className="text-medium text-center mt-6 text-dark-500">
           ¿No tienes cuenta?{' '}
           <span 
             className="text-primary-500 cursor-pointer hover:underline font-medium"
@@ -80,6 +84,7 @@ const Login = () => {
       </div>
     </div>
   );
+
 };
 
 export default Login;
