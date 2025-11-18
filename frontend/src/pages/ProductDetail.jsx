@@ -5,10 +5,9 @@ import {useCart} from '../contexts/CartContext';
 import CustomButton from '../components/UI/CustomButton';
 import { useNavigate } from 'react-router-dom';
 
-
-
 // Simulated function to fetch product data
 const API_URL = import.meta.env.VITE_API_URL;
+
 const fetchProduct = async (productId) => {
     try{
         const response= await fetch(`${API_URL}/catalog/${productId}`);
@@ -52,6 +51,7 @@ const ProductDetail = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [cartMessage, setCartMessage] = useState(null); // For custom message box
+    const [quantity, setQuantity] = useState(1);
     
     const {productId} = useParams();
     const {addItem} = useCart();
@@ -121,21 +121,35 @@ const ProductDetail = () => {
     }).format(product.price);
 
     const isAvailable = product.stock > 0;
-    const stockMessage = isAvailable ? 
-        `In stock: ${product.stock} units` : 
-        'Out of Stock';
+    const stockMessage = isAvailable 
+        ? `In stock: ${product.stock} units` 
+        : 'Out of Stock';
+
+    const handleDecrease = () => {
+        setQuantity((prev) => Math.max(1, prev - 1)); // mínimo 1
+    };
+    
+    const handleIncrease = () => {
+        if (!isAvailable) return;
+            setQuantity((prev) => {
+            if (product.stock) {
+                return Math.min(product.stock, prev + 1);
+            }
+            return prev + 1;
+        });
+    };
 
     const handleAddToCart = () => {
-        addItem({ 
-            productId: product.external_article_id, 
-            qty: 1, 
-            onUnauthenticated:()=> {
-                setTimeout(()=> navigate("/auth/login"),3000)
+        if (!isAvailable) return;
 
+        addItem({
+            productId: product.external_article_id,
+            qty: quantity, // Use selected quantity
+            onUnauthenticated: () => {
+                setTimeout(() => navigate("/auth/login"), 3000);
             },
-        
         });
-};
+    };
 
     //const reviews = MOCK_VISUALIZATION_DATA.reviewSummary;
     //const recomendations = MOCK_VISUALIZATION_DATA.recommendations;
@@ -209,20 +223,51 @@ const ProductDetail = () => {
                                 </div>
                             </div>
                             
-                            {/* Action Button */}
-                            <div className='mt-8'>
-                                <CustomButton
-                                    text={isAvailable ? 'Añadir al carrito' : 'Out of Stock'}
-                                    style={'normal'}
-                                    extraStyles={`w-full md:w-auto cursor-pointer bg-indigo-600 text-center py-4 px-8 text-lg text-white rounded-xl font-bold 
-                                    hover:bg-indigo-700 hover:shadow-xl transition duration-200 
-                                    ${!isAvailable ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : ''}`}
-                                    onClick={isAvailable ? handleAddToCart : undefined}
-                                />
+
+                            {/* Action Button + Quantity Selector */}
+                            <div className="mt-8 space-y-4">
+                            {/* Quantity selector */}
+                            <div className="flex items-center gap-4">
+                                <span className="text-sm font-medium text-gray-700">Cantidad:</span>
+                                <div className="inline-flex items-center rounded-full border border-gray-300 bg-white overflow-hidden">
+                                    <button
+                                        type="button"
+                                        onClick={handleDecrease}
+                                        className="px-3 py-1 text-lg font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40"
+                                        disabled={quantity <= 1 || !isAvailable}
+                                    >
+                                        −
+                                    </button>
+                                    <span className="px-4 py-1 text-base font-semibold text-gray-900 min-w-[2.5rem] text-center">
+                                        {quantity}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={handleIncrease}
+                                        className="px-3 py-1 text-lg font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40"
+                                        disabled={!isAvailable || quantity >= product.stock}
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                                {isAvailable && (
+                                    <span className="text-xs text-gray-500">
+                                        Max: {product.stock}
+                                    </span>
+                                )}
                             </div>
 
+                            {/* Add to Cart Button */}
+                            <CustomButton
+                                text={isAvailable ? 'Añadir al carrito' : 'Out of Stock'}
+                                style={'normal'}
+                                extraStyles={`w-full md:w-auto cursor-pointer bg-indigo-600 text-center py-4 px-8 text-lg text-white rounded-xl font-bold 
+                                    hover:bg-indigo-700 hover:shadow-xl transition duration-200 
+                                    ${!isAvailable ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : ''}`}
+                                onClick={isAvailable ? handleAddToCart : undefined}
+                            />
+                            </div>
                         </div>
-
                     </div>
                 </div>              
             </div>
