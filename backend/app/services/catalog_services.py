@@ -109,14 +109,25 @@ def list_products(
     if user_id is None:
         sql = f"""
             SELECT
-                external_article_id,
-                product_code,
-                prod_name,
-                price,
-                stock,
-                perceived_colour_master_name,
-                section_name
-            FROM catalog
+                c.external_article_id,
+                c.product_code,
+                c.prod_name,
+                c.price,
+                c.stock,
+                c.perceived_colour_master_name,
+                c.section_name,
+                NVL(r.avg_rating, 0)   AS avg_rating,
+                NVL(r.rating_count, 0) AS rating_count
+            FROM catalog c
+            LEFT JOIN (
+                SELECT
+                    article_id,
+                    AVG(rating) AS avg_rating,
+                    COUNT(*)    AS rating_count
+                FROM product_ratings
+                GROUP BY article_id
+            ) r
+              ON r.article_id = c.external_article_id
             {where_sql}
             {order_by}
             OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
@@ -157,6 +168,8 @@ def list_products(
             p.stock,
             p.perceived_colour_master_name,
             p.section_name,
+            NVL(r.avg_rating, 0)   AS avg_rating,
+            NVL(r.rating_count, 0) AS rating_count,
             NVL(gender_p.weight,0) * CASE WHEN UPPER(TRIM(p.index_group_name))             = gender_p.key_text THEN :w_gender ELSE 0 END +
             NVL(dept_p.weight,0)   * CASE WHEN UPPER(TRIM(p.department_name))              = dept_p.key_text   THEN :w_dept   ELSE 0 END +
             NVL(pg_p.weight,0)     * CASE WHEN UPPER(TRIM(p.product_group_name))           = pg_p.key_text     THEN :w_pg     ELSE 0 END +
@@ -165,6 +178,15 @@ def list_products(
             NVL(col_p.weight,0)    * CASE WHEN UPPER(TRIM(p.perceived_colour_master_name)) = col_p.key_text    THEN :w_col    ELSE 0 END
             AS score_user
         FROM catalog p
+        LEFT JOIN (
+            SELECT
+                article_id,
+                AVG(rating) AS avg_rating,
+                COUNT(*)    AS rating_count
+            FROM product_ratings
+            GROUP BY article_id
+        ) r
+          ON r.article_id = p.external_article_id
         LEFT JOIN prefs gender_p ON gender_p.facet='GENDER'
         LEFT JOIN prefs dept_p   ON dept_p.facet='DEPARTMENT'
         LEFT JOIN prefs pg_p     ON pg_p.facet='PRODUCT_GROUP'
@@ -228,16 +250,27 @@ def get_distinct_product_types(pool) -> list[dict]:
 def get_product(pool, external_article_id: str) -> Optional[Dict]:
     sql = """
         SELECT
-            external_article_id,
-            product_code,
-            prod_name,
-            price,
-            stock,
-            detail_desc,
-            perceived_colour_master_name,
-            section_name
-        FROM catalog
-        WHERE external_article_id = :external_article_id
+            c.external_article_id,
+            c.product_code,
+            c.prod_name,
+            c.price,
+            c.stock,
+            c.detail_desc,
+            c.perceived_colour_master_name,
+            c.section_name,
+            NVL(r.avg_rating, 0)   AS avg_rating,
+            NVL(r.rating_count, 0) AS rating_count
+        FROM catalog c
+        LEFT JOIN (
+            SELECT
+                article_id,
+                AVG(rating) AS avg_rating,
+                COUNT(*)    AS rating_count
+            FROM product_ratings
+            GROUP BY article_id
+        ) r
+          ON r.article_id = c.external_article_id
+        WHERE c.external_article_id = :external_article_id
     """
     with pool.acquire() as conn, conn.cursor() as cur:
         cur.execute(sql, {"external_article_id": external_article_id})
