@@ -1,8 +1,6 @@
-// src/contexts/CartContext.jsx
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useAuth } from "./AuthContext";
-import {toast} from 'react-toastify';
-
+import { toast } from "react-toastify";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const CartCtx = createContext(null);
@@ -10,15 +8,13 @@ const CartCtx = createContext(null);
 export function CartProvider({ children }) {
   const { token, isLoggedIn } = useAuth();
 
-
   const [cart, setCart] = useState({ items: [], subtotal: 0, count: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Header autorization with token
+  // Use a single place to derive auth headers so token handling is consistent across all cart calls
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
-  // Fetch wrapper with auth headers
   const authedFetch = useCallback(
     async (url, options = {}) => {
       try {
@@ -29,12 +25,12 @@ export function CartProvider({ children }) {
             ...(options.headers || {}),
             ...authHeaders,
           },
-          // NO credentials included
+          // Keep credentials disabled so this API stays token-based and does not depend on cookies
           // mode: "cors" // default
         });
         return res;
       } catch (e) {
-        // Network / CORS error
+        // Wrap low-level network/CORS failures into a controlled error so the UI can show a friendlier message
         const err = new Error("Network error / CORS");
         err.cause = e;
         throw err;
@@ -43,23 +39,24 @@ export function CartProvider({ children }) {
     [token]
   );
 
-  // Normalize cart data from API to frontend format
   function normalizeCart(data) {
     const items = (data?.items ?? []).map((row) => {
+      // Force string IDs so they can be used safely as React keys and URL segments
       const articleId = String(row.ARTICLE_ID);
       const title = row.PROD_NAME ?? "Producto";
       const price = Number(row.PRICE ?? 0);
       const qty = Number(row.QUANTITY ?? 1);
+      // Prefer backend line total but fall back to client-side calculation to keep UI usable if the API omits it
       const lineTotal = Number(row.LINE_TOTAL ?? price * qty);
 
-      // Image fallbacks: IMAGE_URL > IMAGE_KEY > placeholder
+      // Prefer a full URL, then a key, and finally a static placeholder so the UI never breaks on missing images
       const image =
         row.IMAGE_URL ??
         row.IMAGE_KEY ??
         "/placeholder.png";
 
       return {
-        id: articleId,               // key for PATCH/DELETE /items/<ARTICLE_ID>
+        id: articleId, // Used as identifier for PATCH/DELETE /items/<ARTICLE_ID>
         articleId,
         cartItemId: Number(row.CART_ITEM_ID ?? 0),
         title,
@@ -79,11 +76,10 @@ export function CartProvider({ children }) {
     return { items, subtotal, count };
   }
 
-// CRUD API calls
-
   // GET /api/cart
   async function fetchCart() {
     if (!isLoggedIn || !token) {
+      // Reset local state when there is no active session so the UI does not show stale cart data
       setCart({ items: [], subtotal: 0, count: 0 });
       setLoading(false);
       setError("No hay sesión activa.");
@@ -104,15 +100,15 @@ export function CartProvider({ children }) {
   }
 
   // POST /api/cart/items  { article_id, quantity }
-  async function addItem({ productId, qty = 1,onUnauthenticated }) {
-    if (!token){
-      toast.info("Debes iniciar sesión para agregar productos al carrito.", {icon: '🔒',});
+  async function addItem({ productId, qty = 1, onUnauthenticated }) {
+    if (!token) {
+      // Show a soft warning instead of throwing so UX is smoother when user is not logged in
+      toast.info("Debes iniciar sesión para agregar productos al carrito.", { icon: "🔒" });
       setError("No hay sesión activa.");
-      if(onUnauthenticated) onUnauthenticated();
+      if (onUnauthenticated) onUnauthenticated();
       return;
     }
 
-    //Active session
     const body = { article_id: String(productId), quantity: Number(qty) };
 
     const res = await authedFetch(`${API_URL}/cart/items`, {
@@ -122,7 +118,7 @@ export function CartProvider({ children }) {
     if (!res.ok) throw await buildHttpError(res, "POST /cart/items");
     await fetchCart();
 
-    toast.success("Producto agregado al carrito.", { icon: '🛒' });
+    toast.success("Producto agregado al carrito.", { icon: "🛒" });
   }
 
   // PATCH /api/cart/items/<product_ID>  { quantity }
@@ -133,6 +129,7 @@ export function CartProvider({ children }) {
       body: JSON.stringify({ quantity: Number(quantity) }),
     });
     if (!res.ok) throw await buildHttpError(res, "PATCH /cart/items/<id>");
+    // Refetch instead of mutating local state by hand to keep the source of truth in the backend
     await fetchCart();
   }
 
@@ -157,10 +154,12 @@ export function CartProvider({ children }) {
   useEffect(() => {
     if (token) fetchCart();
     else {
+      // Reset cart state on logout so the UI does not keep showing data from a previous user
       setCart({ items: [], subtotal: 0, count: 0 });
       setLoading(false);
       setError("");
     }
+    // Ignore other dependencies intentionally to avoid re-fetching on every function re-creation
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
@@ -180,14 +179,14 @@ export function CartProvider({ children }) {
 
 export const useCart = () => useContext(CartCtx);
 
-// Error helpers
 async function buildHttpError(res, label) {
   let detail = "";
   try {
     const json = await res.json();
+    // Try to surface the most meaningful backend message so debugging and user feedback are easier
     detail = json?.error || json?.message || JSON.stringify(json);
   } catch {
-    // no JSON
+    // Swallow JSON parsing errors so we still return a usable error object
   }
   const err = new Error(`${label} -> ${res.status}${detail ? ` | ${detail}` : ""}`);
   err.status = res.status;
@@ -197,6 +196,7 @@ async function buildHttpError(res, label) {
 
 function messageFromError(e, fallback) {
   if (!e) return fallback;
+  // Special-case network/CORS errors to guide backend configuration troubleshooting
   if (e.message === "Network error / CORS") return "Fallo de red/CORS (revisa CORS del backend y URL).";
   if (e.detail) return e.detail;
   if (e.message) return e.message;
