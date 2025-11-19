@@ -6,6 +6,27 @@ import CustomButton from "../components/UI/CustomButton";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+
+// Fetch using the visual agent 
+const SimilarProduct = async(productId, k= 4) =>{
+  try{
+    const response = await fetch(`${API_URL}/catalog/visual_agent`,{
+      method: "POST", 
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ids:[productId], k})
+    });
+    if (!response.ok) {
+      throw new Error ("Error fecthing recommendations");
+    }
+    const data= await response.json();
+    return data.items || [];
+  } catch(error){
+    console.error("Recommendation fetch error:", error);
+    return [];
+  }
+};
+
+
 const fetchProduct = async (productId) => {
   try {
     const response = await fetch(`${API_URL}/catalog/${productId}`);
@@ -71,27 +92,19 @@ const ProductDetail = () => {
         setIsLoading(true);
         setError(null);
 
-        // Producto principal
-        const data = await fetchProduct(productId);
-        if (!data) throw new Error("No se pudo cargar el producto.");
-        setProduct(data);
+        //Execute both functions in parallel
+        const [productData, recommendationsData]= await Promise.all([
+          fetchProduct(productId),
+          SimilarProduct(productId,4),
+        ]);
 
-        // Poner cantidad en 1 al cambiar de producto
+        if (!productData) throw new Error("No se pudo cargar el producto.");
+
+        setProduct(productData);
+        setRecommendations(recommendationsData);
+
         setQuantity(1);
-
-        // Recomendaciones
-        const recRes = await fetch(`${API_URL}/catalog?limit=50`);
-        if (recRes.ok) {
-          const recJson = await recRes.json();
-          if (recJson?.items) {
-            const shuffled = recJson.items.sort(() => Math.random() - 0.5);
-            const filtered = shuffled
-              .filter((p) => p.external_article_id !== productId)
-              .slice(0, 4);
-
-            setRecommendations(filtered);
-          }
-        }
+  
       } catch (err) {
         console.error(err);
         setError("No se pudo cargar el producto.");
@@ -133,7 +146,7 @@ const ProductDetail = () => {
 
   if (!product) return null;
 
-  // Formato de precio y stock
+  //Price in MXN and stock 
   const formattedPrice = new Intl.NumberFormat("es-MX", {
     style: "currency",
     currency: "MXN",
@@ -145,7 +158,7 @@ const ProductDetail = () => {
     ? `En stock: ${product.stock} unidades`
     : "Agotado";
 
-  // Handlers cantidad
+  // Handlers quantity 
   const handleDecrease = () => {
     setQuantity((prev) => Math.max(1, prev - 1));
   };
@@ -175,9 +188,12 @@ const ProductDetail = () => {
   return (
     <div className="min-h-screen bg-[#F7F7F7] pt-10 pb-24 font-['Inter']">
       <div className="max-w-7xl mx-auto px-8">
-        {/* Sección principal de detalle */}
+        
+
+        {/*Product details */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-20 bg-white rounded-2xl p-10 shadow-lg">
-          {/* Imagen */}
+
+          {/* Image */}
           <div className="flex justify-center">
             <div className="w-full max-w-xl bg-gray-100 rounded-xl overflow-hidden shadow-inner">
               <img
@@ -193,7 +209,9 @@ const ProductDetail = () => {
             </div>
           </div>
 
-          {/* Detalles */}
+
+
+          {/* Details */}
           <div className="flex flex-col justify-start">
             <h1 className="text-4xl font-bold text-dark-500 mb-4 leading-tight">
               {product.prod_name}
@@ -206,6 +224,7 @@ const ProductDetail = () => {
             <p className="text-dark-400 leading-relaxed mb-6">
               {product.detail_desc}
             </p>
+
 
             <div className="space-y-4 mb-8">
               <div className="flex items-center text-dark-500">
@@ -233,7 +252,9 @@ const ProductDetail = () => {
               </span>
             </div>
 
-            {/* Tallas mock */}
+
+
+            {/* Mock sizes */}
             <div className="mb-8">
               <p className="text-dark-500 font-medium mb-2">
                 Selecciona tu talla
@@ -266,13 +287,17 @@ const ProductDetail = () => {
               )}
             </div>
 
-            {/* Cantidad + botón */}
+
+
+            {/*Quantity and button*/}
             <div className="mt-4 space-y-4">
-              {/* Selector de cantidad */}
+
+              {/* Quantity */}
               <div className="flex items-center gap-4">
                 <span className="text-sm font-medium text-gray-700">
                   Cantidad:
                 </span>
+
                 <div className="inline-flex items-center rounded-full border border-gray-300 bg-white overflow-hidden">
                   <button
                     type="button"
@@ -282,9 +307,11 @@ const ProductDetail = () => {
                   >
                     −
                   </button>
+
                   <span className="px-4 py-1 text-base font-semibold text-gray-900 min-w-[2.5rem] text-center">
                     {quantity}
                   </span>
+
                   <button
                     type="button"
                     onClick={handleIncrease}
@@ -294,6 +321,7 @@ const ProductDetail = () => {
                     +
                   </button>
                 </div>
+
                 {isAvailable && (
                   <span className="text-xs text-gray-500">
                     Máx: {product.stock}
@@ -301,10 +329,11 @@ const ProductDetail = () => {
                 )}
               </div>
 
-              {/* Botón añadir al carrito */}
+
+              {/*Add to cart*/}
               <CustomButton
                 text={isAvailable ? "Añadir al carrito" : "Agotado"}
-                style={"normal"}
+                style={"secondary"}
                 extraStyles={`w-full md:w-auto cursor-pointer bg-indigo-600 text-center py-4 px-8 text-lg text-white rounded-xl font-bold 
                   hover:bg-indigo-700 hover:shadow-xl transition duration-200 
                   ${!isAvailable ? "bg-gray-300 text-gray-600 cursor-not-allowed" : ""}`}
@@ -314,24 +343,36 @@ const ProductDetail = () => {
           </div>
         </div>
 
-        {/* Recomendaciones */}
+
+
+
+        {/*Recs using Agente Visualizador */}
         <div className="mt-20">
           <h2 className="text-2xl font-semibold text-dark-500 mb-6">
             También te podría interesar
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
-            {recommendations.map((item) => (
-              <RecommendationCard
-                key={item.external_article_id}
-                product={item}
-              />
-            ))}
+            {recommendations.length === 0 ? (
+              <p className="text-gray-500 col-span-4">
+                No hay recomendaciones disponibles.
+              </p>
+            ) : (
+              recommendations.map((item) => (
+                <RecommendationCard
+                  key={item.external_article_id}
+                  product={item}
+                />
+              ))
+            )}
           </div>
         </div>
+
       </div>
     </div>
   );
+
+    
 };
 
 export default ProductDetail;
