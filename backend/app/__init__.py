@@ -11,6 +11,7 @@ from .routes.catalog_routes import catalog_bp
 from .routes.cart_routes import cart_bp
 from .routes.payments_routes import payments_bp
 from .routes.preferences_routes import preferences_bp
+from .routes.rating_routes import ratings_bp
 from .services.db.connection import create_pool
 
 def create_app():
@@ -45,6 +46,7 @@ def create_app():
    app.register_blueprint(cart_bp, url_prefix="/api/cart")
    app.register_blueprint(payments_bp, url_prefix="/api/payments")
    app.register_blueprint(preferences_bp, url_prefix="/api/preferences")
+   app.register_blueprint(ratings_bp, url_prefix="/api/ratings")
 
 
    # Base route
