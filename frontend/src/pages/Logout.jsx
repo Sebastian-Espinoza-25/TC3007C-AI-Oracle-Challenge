@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import CustomButton from '../components/UI/CustomButton';
 import SadCat from '../assets/sadcat.jpg';
 
