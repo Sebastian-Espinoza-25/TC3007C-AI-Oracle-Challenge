@@ -9,7 +9,7 @@ from app.services.payments_services import (
     get_invoices,
 )
 
-payments_bp = Blueprint("payment_bp", __name__)
+payments_bp = Blueprint("payments_bp", __name__)
 
 
 # Create a Payment Intent
@@ -47,9 +47,15 @@ def webhook():
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
-    if event["type"] == "payment_intent.succeeded":
-        pool = current_app.config["DB_POOL"]
-        confirm_payment(pool, event["data"]["object"]["id"], event)
+    # IGNORAR TODO excepto payment_intent.succeeded
+    event_type = event["type"]
+    if event_type != "payment_intent.succeeded":
+        return jsonify({"ignored": True}), 200
+
+    # SOLO AQUÍ procesamos el pago porque ya existe en DB
+    pool = current_app.config["DB_POOL"]
+    intent_id = event["data"]["object"]["id"]
+    confirm_payment(pool, intent_id, event)
 
     return jsonify({"received": True}), 200
 

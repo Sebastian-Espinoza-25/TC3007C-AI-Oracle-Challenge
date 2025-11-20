@@ -7,6 +7,11 @@ from app.utils.mail.mail import send_payment_confirmation_from_db
 # Logger setup
 logger = logging.getLogger("stripe_payments")
 
+# Database table names
+TABLE_PAYMENTS = "paymentss"
+TABLE_INVOICES = "invoicess"
+TABLE_METHODS = "payment_methodss"
+
 
 def get_stripe_key():
     """Set the Stripe API key dynamically from Flask config."""
@@ -16,13 +21,16 @@ def get_stripe_key():
 def create_payment_intent(pool, user_id, amount=None, currency="MXN"):
     """
     Create a Stripe PaymentIntent using the user's OPEN cart total.
-    - We ignore the 'amount' sent by frontend and trust DB (cart.total_price).
+    - Ignores amount from frontend.
+    - Creates an ORDER + ORDER_ITEMS from the current cart.
+    - Stores a PENDING payment linked to that order.
     """
     get_stripe_key()
 
-    # 1) Get user's OPEN cart and its total from DB
     with pool.acquire() as conn:
         cursor = conn.cursor()
+
+        # 1) Get user's OPEN cart
         cursor.execute(
             """
             SELECT cart_id, total_price
@@ -41,120 +49,261 @@ def create_payment_intent(pool, user_id, amount=None, currency="MXN"):
 
         cart_id, cart_total = cart_row
 
-    # 2) Create PaymentIntent in Stripe based on cart_total
+        # 2) Get cart items
+        cursor.execute(
+            """
+            SELECT article_id, quantity, price
+              FROM cart_items
+             WHERE cart_id = :1
+            """,
+            [cart_id],
+        )
+        cart_items = cursor.fetchall()
+        if not cart_items:
+            raise ValueError("Cart has no items.")
+
+        # 3) Recalculate total from cart_items (sanity check)
+        calculated_total = sum(q * p for _, q, p in cart_items)
+        if abs(calculated_total - cart_total) > 0.01:
+            logger.warning(
+                f"[SANITY CHECK MISMATCH @intent] cart_total={cart_total} "
+                f"vs items_total={calculated_total}"
+            )
+            # Usamos calculated_total para el intent y la orden
+            cart_total = calculated_total
+
+        # 4) Get shipping address
+        cursor.execute(
+            """
+            SELECT address
+              FROM app_user
+             WHERE user_id = :1
+            """,
+            [user_id],
+        )
+        addr_row = cursor.fetchone()
+        order_address = addr_row[0] if addr_row and addr_row[0] else "N/A"
+
+        # 5) Create ORDER (aún sin pago confirmado)
+        order_id_var = cursor.var(int)
+        cursor.execute(
+            """
+            INSERT INTO orders (
+                user_id,
+                order_address,
+                payment_date,
+                total_price
+            )
+            VALUES (:1, :2, NULL, :3)
+            RETURNING order_id INTO :4
+            """,
+            [user_id, order_address, cart_total, order_id_var],
+        )
+        order_id = int(order_id_var.getvalue()[0])
+
+        # 6) Create ORDER_ITEMS from cart_items
+        for article_id, quantity, price in cart_items:
+            cursor.execute(
+                """
+                INSERT INTO order_items (
+                    order_id,
+                    article_id,
+                    quantity,
+                    price
+                )
+                VALUES (:1, :2, :3, :4)
+                """,
+                [order_id, article_id, quantity, price],
+            )
+
+        # Commit so order + order_items exist BEFORE hitting Stripe
+        conn.commit()
+
+    # 7) Create PaymentIntent in Stripe
     intent = stripe.PaymentIntent.create(
         amount=int(cart_total * 100),
         currency=currency.lower(),
-        metadata={"user_id": user_id, "cart_id": cart_id},
+        metadata={
+            "user_id": str(user_id),
+            "cart_id": str(cart_id),
+            "order_id": str(order_id),
+        },
+        payment_method_types=["card"],
+        expand=["payment_method"],
     )
 
-    # 3) Store the payment as PENDING in DB
+    # 8) Extract payment method info (if already attached)
+    pm_info = None
+    if intent.get("payment_method") and intent["payment_method"]["type"] == "card":
+        card = intent["payment_method"]["card"]
+        pm_info = {
+            "brand": card["brand"],
+            "type": "card",
+            "last4": card["last4"],
+        }
+
+        # Save to DB (card info)
+        add_payment_method(
+            pool,
+            user_id,
+            card["brand"],
+            "card",
+            card["last4"],
+        )
+
+    # 9) Store the payment as PENDING in DB, linked to order_id
     with pool.acquire() as conn:
         cursor = conn.cursor()
+        print("DEBUG intent id:", intent["id"], type(intent["id"]))
         cursor.execute(
-            """
-            INSERT INTO payments (
+            f"""
+            INSERT INTO {TABLE_PAYMENTS} (
                 user_id,
                 amount,
                 currency,
                 payment_provider,
                 payment_intent_id,
-                status
+                status,
+                order_id
             )
-            VALUES (:1, :2, :3, 'STRIPE', :4, 'PENDING')
+            VALUES (:1, :2, :3, 'STRIPE', :4, 'PENDING', :5)
             """,
-            [user_id, cart_total, currency, intent["id"]],
+            [user_id, cart_total, currency, str(intent["id"]), order_id],
         )
         conn.commit()
 
-    return intent["client_secret"]
+    return {
+        "client_secret": intent["client_secret"],
+        "payment_method": pm_info,
+        "order_id": order_id,  # por si lo quieres en el front
+    }
+
+
+# List payment methods for a user
+def list_payment_methods(pool, user_id):
+    with pool.acquire() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            f"""
+            SELECT brand, type, last4
+              FROM {TABLE_METHODS}
+             WHERE user_id = :1
+            """,
+            [user_id],
+        )
+        rows = cursor.fetchall()
+
+        return [
+            {"brand": r[0], "type": r[1], "last4": r[2]}
+            for r in rows
+        ]
+
+
+# Add a new payment method for a user
+def add_payment_method(pool, user_id, brand, type, last4):
+    with pool.acquire() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            f"""
+            INSERT INTO {TABLE_METHODS} (user_id, brand, type, last4)
+            VALUES (:1, :2, :3, :4)
+            """,
+            [user_id, brand, type, last4],
+        )
+        conn.commit()
+
+
+# Get invoices for a user
+def get_invoices(pool, user_id):
+    with pool.acquire() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            f"""
+            SELECT invoice_id, amount, currency, status, description, created_at
+              FROM {TABLE_INVOICES}
+             WHERE user_id = :1
+             ORDER BY created_at DESC
+            """,
+            [user_id],
+        )
+        rows = cursor.fetchall()
+
+        return [
+            {
+                "invoice_id": r[0],
+                "amount": r[1],
+                "currency": r[2],
+                "status": r[3],
+                "description": r[4],
+                "created_at": r[5],
+            }
+            for r in rows
+        ]
 
 
 def confirm_payment(pool, provider_ref, stripe_event):
     """
     Handle Stripe webhook when a payment succeeds.
-
-    Flow:
-    1) Lock payment row and get user/amount.
-    2) Find user's OPEN cart (lock it).
-    3) Fetch all cart_items (lock rows).
-    4) Check stock in catalog for each article (lock).
-    5) Deduct stock.
-    6) Create order.
-    7) Create order_items from cart_items.
-    8) Create invoice with status 'PAID'.
-    9) Update payment with SUCCEEDED, order_id, invoice_id.
-    10) Close the cart.
-    11) Commit transaction.
-    12) Send confirmation email.
+    - Uses existing ORDER created at intent time.
+    - Deducts stock, creates INVOICE, closes carts, updates PAYMENT.
     """
+
+    provider_ref = str(provider_ref)
+
     with pool.acquire() as conn:
         cursor = conn.cursor()
 
         try:
-            # 1) Get and lock the payment row
+            # 1) Get payment row and lock it
             cursor.execute(
-                """
-                SELECT payment_id, user_id, amount, currency
-                  FROM payments
+                f"""
+                SELECT payment_id,
+                       user_id,
+                       amount,
+                       currency,
+                       order_id
+                  FROM {TABLE_PAYMENTS}
                  WHERE payment_intent_id = :1
+                   AND payment_provider = 'STRIPE'
                  FOR UPDATE
                 """,
                 [provider_ref],
             )
+
             pay_row = cursor.fetchone()
             if not pay_row:
                 raise ValueError("Payment not found for this intent_id.")
 
-            payment_id, user_id, pay_amount, pay_currency = pay_row
+            payment_id, user_id, pay_amount, pay_currency, order_id = pay_row
 
-            # 2) Get and lock user's OPEN cart
-            cursor.execute(
-                """
-                SELECT cart_id, total_price
-                  FROM carts
-                 WHERE user_id = :1
-                   AND status = 'OPEN'
-                 ORDER BY created_at DESC
-                 FETCH FIRST 1 ROW ONLY
-                 FOR UPDATE
-                """,
-                [user_id],
-            )
-            cart_row = cursor.fetchone()
-            if not cart_row:
-                raise ValueError("No OPEN cart found for user when confirming payment.")
+            if order_id is None:
+                raise ValueError("Payment has no linked order_id.")
 
-            cart_id, cart_total = cart_row
-
-            # 3) Get and lock cart_items
+            # 2) Get order_items for the order
             cursor.execute(
                 """
                 SELECT article_id, quantity, price
-                  FROM cart_items
-                 WHERE cart_id = :1
+                  FROM order_items
+                 WHERE order_id = :1
                  FOR UPDATE
                 """,
-                [cart_id],
+                [order_id],
             )
-            cart_items = cursor.fetchall()
-            if not cart_items:
-                raise ValueError("Cart has no items.")
+            order_items = cursor.fetchall()
+            if not order_items:
+                raise ValueError("Order has no items.")
 
-            # 4) Recalculate total from cart_items
-            calculated_total = 0
-            for article_id, quantity, price in cart_items:
-                calculated_total += quantity * price
+            # 3) Recalculate total from order_items
+            calculated_total = sum(q * p for _, q, p in order_items)
 
-            # Sanity check
-            if abs(calculated_total - cart_total) > 0.01:
+            if abs(calculated_total - pay_amount) > 0.01:
                 logger.warning(
-                    f"[SANITY CHECK MISMATCH] cart_total={cart_total} "
-                    f"vs items_total={calculated_total} (cart_id={cart_id}, user={user_id})"
+                    f"[SANITY CHECK MISMATCH @webhook] payment.amount={pay_amount} "
+                    f"vs order_items_total={calculated_total}"
                 )
 
-            # 5) Check stock for each article and lock catalog rows
-            for article_id, quantity, price in cart_items:
+            # 4) Check and lock stock from catalog
+            for article_id, quantity, _ in order_items:
                 cursor.execute(
                     """
                     SELECT stock
@@ -166,17 +315,16 @@ def confirm_payment(pool, provider_ref, stripe_event):
                 )
                 stock_row = cursor.fetchone()
                 if not stock_row:
-                    raise ValueError(f"Article {article_id} not found in catalog.")
+                    raise ValueError(f"Article {article_id} not found.")
 
-                (current_stock,) = stock_row
-                if current_stock < quantity:
+                if stock_row[0] < quantity:
                     raise ValueError(
                         f"Not enough stock for article {article_id}. "
-                        f"Requested {quantity}, available {current_stock}."
+                        f"Requested {quantity}, available {stock_row[0]}."
                     )
 
-            # 6) Deduct stock
-            for article_id, quantity, price in cart_items:
+            # 5) Deduct stock
+            for article_id, quantity, _ in order_items:
                 cursor.execute(
                     """
                     UPDATE catalog
@@ -186,60 +334,21 @@ def confirm_payment(pool, provider_ref, stripe_event):
                     [article_id, quantity],
                 )
 
-            # 7) Get shipping address
+            # 6) Update ORDER payment_date
             cursor.execute(
                 """
-                SELECT address
-                  FROM app_user
-                 WHERE user_id = :1
+                UPDATE orders
+                   SET payment_date = SYSTIMESTAMP
+                 WHERE order_id = :1
                 """,
-                [user_id],
+                [order_id],
             )
-            addr_row = cursor.fetchone()
-            order_address = addr_row[0] if addr_row and addr_row[0] else "N/A"
 
-            # 8) Create order
-            order_id_var = cursor.var(int)
-            cursor.execute(
-                """
-                INSERT INTO orders (
-                    user_id,
-                    order_address,
-                    payment_date,
-                    total_price
-                )
-                VALUES (
-                    :1,
-                    :2,
-                    SYSTIMESTAMP,
-                    :3
-                )
-                RETURNING order_id INTO :4
-                """,
-                [user_id, order_address, calculated_total, order_id_var],
-            )
-            order_id = int(order_id_var.getvalue()[0])
-
-            # 9) Create order_items
-            for article_id, quantity, price in cart_items:
-                cursor.execute(
-                    """
-                    INSERT INTO order_items (
-                        order_id,
-                        article_id,
-                        quantity,
-                        price
-                    )
-                    VALUES (:1, :2, :3, :4)
-                    """,
-                    [order_id, article_id, quantity, price],
-                )
-
-            # 10) Create invoice (PAID)
+            # 7) Create INVOICE for this paid order
             invoice_id_var = cursor.var(int)
             cursor.execute(
-                """
-                INSERT INTO invoices (
+                f"""
+                INSERT INTO {TABLE_INVOICES} (
                     user_id,
                     order_id,
                     amount,
@@ -247,14 +356,7 @@ def confirm_payment(pool, provider_ref, stripe_event):
                     status,
                     description
                 )
-                VALUES (
-                    :1,
-                    :2,
-                    :3,
-                    :4,
-                    'PAID',
-                    :5
-                )
+                VALUES (:1, :2, :3, :4, 'PAID', :5)
                 RETURNING invoice_id INTO :6
                 """,
                 [
@@ -268,37 +370,37 @@ def confirm_payment(pool, provider_ref, stripe_event):
             )
             invoice_id = int(invoice_id_var.getvalue()[0])
 
-            # 11) Update payment
+            # 8) Update PAYMENT row
             cursor.execute(
-                """
-                UPDATE payments
+                f"""
+                UPDATE {TABLE_PAYMENTS}
                    SET status     = 'SUCCEEDED',
                        updated_at = SYSTIMESTAMP,
-                       order_id   = :2,
-                       invoice_id = :3
-                 WHERE payment_intent_id = :1
+                       invoice_id = :2
+                 WHERE payment_id = :1
                 """,
-                [provider_ref, order_id, invoice_id],
+                [payment_id, invoice_id],
             )
 
-            # 12) Close cart
+            # 9) Close all OPEN carts for this user
             cursor.execute(
                 """
                 UPDATE carts
                    SET status = 'CLOSED'
-                 WHERE cart_id = :1
+                 WHERE user_id = :1
+                   AND status = 'OPEN'
                 """,
-                [cart_id],
+                [user_id],
             )
 
-            # 13) Commit transaction
+            # 10) Commit all DB changes
             conn.commit()
 
         except Exception:
             conn.rollback()
             raise
 
-    # 14) Send email outside DB transaction
+    # 11) Send email (outside DB transaction)
     try:
         send_payment_confirmation_from_db(pool, provider_ref)
     except Exception as e:
