@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Package, Palette, Loader2, ArrowLeft } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useCart } from "../contexts/CartContext";
@@ -6,26 +6,25 @@ import CustomButton from "../components/UI/CustomButton";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-
-// Fetch using the visual agent 
-const SimilarProduct = async(productId, k= 4) =>{
-  try{
-    const response = await fetch(`${API_URL}/catalog/visual_agent`,{
-      method: "POST", 
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ids:[productId], k})
+// Use a dedicated helper so the visual-agent endpoint stays isolated from the rest of the data layer
+const SimilarProduct = async (productId, k = 4) => {
+  try {
+    const response = await fetch(`${API_URL}/catalog/visual_agent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: [productId], k }),
     });
     if (!response.ok) {
-      throw new Error ("Error fecthing recommendations");
+      throw new Error("Error fecthing recommendations");
     }
-    const data= await response.json();
+    const data = await response.json();
+    // Fallback to an empty list so the UI does not break when the backend returns an unexpected shape
     return data.items || [];
-  } catch(error){
+  } catch (error) {
     console.error("Recommendation fetch error:", error);
     return [];
   }
 };
-
 
 const fetchProduct = async (productId) => {
   try {
@@ -38,7 +37,6 @@ const fetchProduct = async (productId) => {
   }
 };
 
-// Recommendation card
 const RecommendationCard = ({ product }) => {
   const navigate = useNavigate();
 
@@ -53,6 +51,7 @@ const RecommendationCard = ({ product }) => {
           alt={product.prod_name}
           className="object-cover w-full h-full"
           onError={(e) => {
+            // Replace broken images with a neutral placeholder to keep the layout consistent
             e.target.onerror = null;
             e.target.src =
               "https://placehold.co/300x300/e5e7eb/6b7280?text=Sin+Imagen";
@@ -83,19 +82,19 @@ const ProductDetail = () => {
 
   const [quantity, setQuantity] = useState(1);
   const availableSizes = ["XS", "S", "M", "L", "XL"];
+  // Keep size selection optional to allow a simple flow while still letting users indicate a preference
   const [selectedSize, setSelectedSize] = useState(null);
 
-  // Fetch product + recommendations
   useEffect(() => {
     const loadData = async () => {
       try {
         setIsLoading(true);
         setError(null);
 
-        //Execute both functions in parallel
-        const [productData, recommendationsData]= await Promise.all([
+        // Fetch product and recommendations in parallel to minimize total waiting time
+        const [productData, recommendationsData] = await Promise.all([
           fetchProduct(productId),
-          SimilarProduct(productId,4),
+          SimilarProduct(productId, 4),
         ]);
 
         if (!productData) throw new Error("No se pudo cargar el producto.");
@@ -103,8 +102,8 @@ const ProductDetail = () => {
         setProduct(productData);
         setRecommendations(recommendationsData);
 
+        // Reset quantity when navigating between products so previous selections do not leak
         setQuantity(1);
-  
       } catch (err) {
         console.error(err);
         setError("No se pudo cargar el producto.");
@@ -116,7 +115,6 @@ const ProductDetail = () => {
     loadData();
   }, [productId]);
 
-  // Loading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -128,7 +126,6 @@ const ProductDetail = () => {
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-red-50 p-6">
@@ -146,7 +143,6 @@ const ProductDetail = () => {
 
   if (!product) return null;
 
-  //Price in MXN and stock 
   const formattedPrice = new Intl.NumberFormat("es-MX", {
     style: "currency",
     currency: "MXN",
@@ -158,13 +154,14 @@ const ProductDetail = () => {
     ? `En stock: ${product.stock} unidades`
     : "Agotado";
 
-  // Handlers quantity 
   const handleDecrease = () => {
+    // Clamp the minimum quantity to 1 so users cannot go to zero or negative values
     setQuantity((prev) => Math.max(1, prev - 1));
   };
 
   const handleIncrease = () => {
     if (!isAvailable) return;
+    // Respect backend stock to avoid letting users choose more units than are available
     setQuantity((prev) => {
       if (product.stock) {
         return Math.min(product.stock, prev + 1);
@@ -179,6 +176,7 @@ const ProductDetail = () => {
     addItem({
       productId: product.external_article_id,
       qty: quantity,
+      // Redirect unauthenticated users to login after a short delay so they can read the toast message first
       onUnauthenticated: () => {
         setTimeout(() => navigate("/auth/login"), 3000);
       },
@@ -188,12 +186,7 @@ const ProductDetail = () => {
   return (
     <div className="min-h-screen bg-[#F7F7F7] pt-10 pb-24 font-['Inter']">
       <div className="max-w-7xl mx-auto px-8">
-        
-
-        {/*Product details */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-20 bg-white rounded-2xl p-10 shadow-lg">
-
-          {/* Image */}
           <div className="flex justify-center">
             <div className="w-full max-w-xl bg-gray-100 rounded-xl overflow-hidden shadow-inner">
               <img
@@ -201,6 +194,7 @@ const ProductDetail = () => {
                 alt={product.prod_name}
                 className="w-full h-full object-contain p-6"
                 onError={(e) => {
+                  // Swap to a high-resolution placeholder when the main product image fails
                   e.target.onerror = null;
                   e.target.src =
                     "https://placehold.co/600x600/e5e7eb/6b7280?text=Sin+Imagen";
@@ -209,9 +203,6 @@ const ProductDetail = () => {
             </div>
           </div>
 
-
-
-          {/* Details */}
           <div className="flex flex-col justify-start">
             <h1 className="text-4xl font-bold text-dark-500 mb-4 leading-tight">
               {product.prod_name}
@@ -224,7 +215,6 @@ const ProductDetail = () => {
             <p className="text-dark-400 leading-relaxed mb-6">
               {product.detail_desc}
             </p>
-
 
             <div className="space-y-4 mb-8">
               <div className="flex items-center text-dark-500">
@@ -252,9 +242,6 @@ const ProductDetail = () => {
               </span>
             </div>
 
-
-
-            {/* Mock sizes */}
             <div className="mb-8">
               <p className="text-dark-500 font-medium mb-2">
                 Selecciona tu talla
@@ -287,12 +274,7 @@ const ProductDetail = () => {
               )}
             </div>
 
-
-
-            {/*Quantity and button*/}
             <div className="mt-4 space-y-4">
-
-              {/* Quantity */}
               <div className="flex items-center gap-4">
                 <span className="text-sm font-medium text-gray-700">
                   Cantidad:
@@ -329,11 +311,10 @@ const ProductDetail = () => {
                 )}
               </div>
 
-
-              {/*Add to cart*/}
               <CustomButton
                 text={isAvailable ? "Añadir al carrito" : "Agotado"}
                 style={"secondary"}
+                // Use extraStyles to keep the layout consistent with other buttons while allowing this page to customize colors
                 extraStyles={`w-full md:w-auto cursor-pointer bg-indigo-600 text-center py-4 px-8 text-lg text-white rounded-xl font-bold 
                   hover:bg-indigo-700 hover:shadow-xl transition duration-200 
                   ${!isAvailable ? "bg-gray-300 text-gray-600 cursor-not-allowed" : ""}`}
@@ -343,10 +324,6 @@ const ProductDetail = () => {
           </div>
         </div>
 
-
-
-
-        {/*Recs using Agente Visualizador */}
         <div className="mt-20">
           <h2 className="text-2xl font-semibold text-dark-500 mb-6">
             También te podría interesar
@@ -367,12 +344,9 @@ const ProductDetail = () => {
             )}
           </div>
         </div>
-
       </div>
     </div>
   );
-
-    
 };
 
 export default ProductDetail;

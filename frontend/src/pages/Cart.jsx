@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { CartProvider, useCart } from "../contexts/CartContext";
 import { useNavigate } from "react-router-dom";
 import Spinner from "../components/UI/Spinner";
