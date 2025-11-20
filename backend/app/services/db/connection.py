@@ -49,3 +49,23 @@ def test_connection():
                 print(f"Connected successfully! Query result: {result[0]}")
     except Exception as e:
         print(f" Connection failed: {e}")
+
+def get_oracle_conn():
+    """
+    Devuelve una conexión directa (no pool) usando la misma config
+    que create_pool. Ideal para usarla con OracleVS en el RAG.
+    """
+    conn_kwargs = {
+        "user": DB_USER,
+        "password": DB_PASSWORD,
+        "dsn": CONNECT_STRING,
+    }
+
+    if TNS_ADMIN:
+        conn_kwargs["config_dir"] = TNS_ADMIN
+    if WALLET_LOCATION:
+        conn_kwargs["wallet_location"] = WALLET_LOCATION
+    if WALLET_PASSWORD:
+        conn_kwargs["wallet_password"] = WALLET_PASSWORD
+
+    return oracledb.connect(**conn_kwargs)
