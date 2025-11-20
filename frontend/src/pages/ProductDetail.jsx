@@ -1,251 +1,611 @@
-import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Package, Loader2, ArrowLeft, /*Star*/ Palette, MessageCircle } from 'lucide-react';
-import {useParams} from 'react-router-dom';
-import {useCart} from '../contexts/CartContext';
-import CustomButton from '../components/UI/CustomButton';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from "react";
+import { Package, Palette, Loader2, ArrowLeft, Star } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useCart } from "../contexts/CartContext";
+import { useAuth } from "../contexts/AuthContext";
+import CustomButton from "../components/UI/CustomButton";
+import { toast } from "react-toastify";
 
-
-
-// Simulated function to fetch product data
 const API_URL = import.meta.env.VITE_API_URL;
-const fetchProduct = async (productId) => {
-    try{
-        const response= await fetch(`${API_URL}/catalog/${productId}`);
-        if(!response.ok) throw new Error("Error fetching product");
-        return await response.json();
-    } catch (err){
-        console.error("Fetch error: ", err);
-        return null;
+
+// Visual agent recommendations
+const SimilarProduct = async (productId, k = 4) => {
+  try {
+    const response = await fetch(`${API_URL}/catalog/visual_agent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: [productId], k }),
+    });
+    if (!response.ok) {
+      throw new Error("Error fecthing recommendations");
     }
+    const data = await response.json();
+    return data.items || [];
+  } catch (error) {
+    console.error("Recommendation fetch error:", error);
+    return [];
+  }
 };
 
-// Component to render a single recommendation card
-const RecommendationCard = ({ name, price, image }) => (
-    <div className="p-3 bg-white border border-gray-100 rounded-lg shadow-sm hover:shadow-md transition cursor-pointer">
-        <img src={image} alt={name} className="w-full h-32 object-cover rounded mb-2" />
-        <p className="text-sm font-medium text-gray-800 truncate">{name}</p>
-        <p className="text-xs text-indigo-600 font-bold">${price.toFixed(2)}</p>
-    </div>
-);
+const fetchProduct = async (productId) => {
+  try {
+    const response = await fetch(`${API_URL}/catalog/${productId}`);
+    if (!response.ok) throw new Error("Error fetching product");
+    return await response.json();
+  } catch (err) {
+    console.error("Fetch error: ", err);
+    return null;
+  }
+};
 
-/*
-Component to render the star rating bars
-const StarRatingBar = ({ star, percentage }) => (
-   <div className="flex items-center text-sm">
-     <span className="w-8 text-gray-600">{star} <Star className="w-3 h-3 inline fill-yellow-400 text-yellow-400" /></span>
-    <div className="flex-1 mx-2 h-2 bg-gray-200 rounded-full">
-         <div 
-               className="h-2 bg-indigo-500 rounded-full transition-all duration-500" 
-               style={{ width: `${percentage}%` }}
-            ></div>
-        </div>
-        <span className="w-10 text-right text-gray-600 font-medium">{percentage}%</span>
-    </div>
-); 
-*/
+// Ratings list for an article_id
+const fetchRatings = async (articleId, limit = 20, offset = 0) => {
+  try {
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+    });
+    const response = await fetch(
+      `${API_URL}/ratings/${articleId}?${params.toString()}`
+    );
+    if (!response.ok) {
+      throw new Error("Error fetching ratings");
+    }
+    return await response.json(); // { items, limit, offset, summary }
+  } catch (err) {
+    console.error("Ratings fetch error: ", err);
+    return { items: [], summary: null };
+  }
+};
 
+const RecommendationCard = ({ product }) => {
+  const navigate = useNavigate();
+
+  return (
+    <div
+      onClick={() => navigate(`/detail/${product.external_article_id}`)}
+      className="bg-white p-5 rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition cursor-pointer"
+    >
+      <div className="w-full h-52 bg-gray-100 rounded-lg overflow-hidden mb-3">
+        <img
+          src={product.image_url}
+          alt={product.prod_name}
+          className="object-cover w-full h-full"
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.src =
+              "https://placehold.co/300x300/e5e7eb/6b7280?text=Sin+Imagen";
+          }}
+        />
+      </div>
+
+      <p className="text-base font-semibold text-dark-500 truncate">
+        {product.prod_name}
+      </p>
+
+      <p className="text-sm text-primary-500 font-bold">
+        ${product.price?.toFixed(2)}
+      </p>
+    </div>
+  );
+};
 
 const ProductDetail = () => {
-    // State to hold product data, loading status, errors, and cart message
-    const [product, setProduct] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [cartMessage, setCartMessage] = useState(null); // For custom message box
-    
-    const {productId} = useParams();
-    const {addItem} = useCart();
-    const navigate = useNavigate();
+  const { productId } = useParams(); // external_article_id, e.g. "0145872001"
+  const navigate = useNavigate();
+  const { addItem } = useCart();
+  const { user, token, isLoggedIn } = useAuth();
 
-    useEffect(() => {
-        const loadProduct = async () => {
-            setIsLoading(true);
-            try {
-                const data = await fetchProduct(productId);
-                if (data) {
-                    setProduct(data);
-                    setError(null);
-                } else {
-                    setError("Product not found.");
-                }
-            } catch (err) {
-                console.error("Fetch error:", err);
-                setError("Failed to load product details.");
-            } finally {
-                setIsLoading(false);
-            }
-        };
+  const [product, setProduct] = useState(null);
+  const [recommendations, setRecommendations] = useState([]);
 
-        loadProduct();
-    }, [productId]); 
+  // Ratings state
+  const [ratings, setRatings] = useState([]);
+  const [ratingsSummary, setRatingsSummary] = useState(null);
 
-    // --- Loading State Renderer ---
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-50">
-                <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-                <p className="ml-3 text-lg font-medium text-gray-700">Loading Product...</p>
-            </div>
-        );
-    }
+  // New review form
+  const [newRating, setNewRating] = useState(0);
+  const [newReviewText, setNewReviewText] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewError, setReviewError] = useState("");
 
-    // --- Error State Renderer ---
-    if (error) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-red-50 p-6">
-                <p className="text-xl font-semibold text-red-700 mb-4">Error</p>
-                <p className="text-lg text-red-600 mb-6">{error}</p>
-                <button 
-                    onClick={() => window.location.reload()}
-                    className="flex items-center px-4 py-2 bg-red-500 text-white font-medium rounded-lg shadow-md hover:bg-red-600 transition duration-150"
-                >
-                    <ArrowLeft className="w-5 h-5 mr-2" /> Go Back
-                </button>
-            </div>
-        );
-    }
-    
-    if (!product) {
-        return (
-            <div className="text-center p-8 text-gray-500">
-                Product data is unavailable.
-            </div>
-        );
-    }
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-    // Format price for display
-    const formattedPrice = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 2,
-    }).format(product.price);
+  const [quantity, setQuantity] = useState(1);
+  const availableSizes = ["XS", "S", "M", "L", "XL"];
+  const [selectedSize, setSelectedSize] = useState(null);
 
-    const isAvailable = product.stock > 0;
-    const stockMessage = isAvailable ? 
-        `In stock: ${product.stock} units` : 
-        'Out of Stock';
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
 
-    const handleAddToCart = () => {
-        addItem({ 
-            productId: product.external_article_id, 
-            qty: 1, 
-            onUnauthenticated:()=> {
-                setTimeout(()=> navigate("/auth/login"),3000)
+        // Fetch product, recommendations and ratings in parallel
+        const [productData, recommendationsData, ratingsData] =
+          await Promise.all([
+            fetchProduct(productId),
+            SimilarProduct(productId, 4),
+            fetchRatings(productId, 20, 0),
+          ]);
 
-            },
-        
-        });
-};
+        if (!productData) throw new Error("No se pudo cargar el producto.");
 
-    //const reviews = MOCK_VISUALIZATION_DATA.reviewSummary;
-    //const recomendations = MOCK_VISUALIZATION_DATA.recommendations;
+        setProduct(productData);
+        setRecommendations(recommendationsData);
+        setRatings(ratingsData.items || []);
+        setRatingsSummary(ratingsData.summary || null);
 
+        setQuantity(1);
+      } catch (err) {
+        console.error(err);
+        setError("No se pudo cargar el producto.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, [productId]);
+
+  if (isLoading) {
     return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center font-['Inter']">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+        <p className="ml-3 text-lg font-medium text-dark-400">
+          Cargando producto…
+        </p>
+      </div>
+    );
+  }
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                
-                {/* Main Product Detail Section */}
-                <div className="bg-white rounded-xl shadow-2xl p-6 md:p-12 mb-10">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-16">
-                        
-                        {/* 1. Image Gallery (Left Column) */}
-                        <div className="md:col-span-1 flex justify-center items-start">
-                            <div className="w-full max-w-md bg-gray-100 rounded-lg overflow-hidden shadow-inner aspect-square">
-                                <img 
-                                    src={product.image_url} 
-                                    alt={product.prod_name} 
-                                    className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-                                    // Fallback for image loading error
-                                    onError={(e) => {
-                                        e.target.onerror = null; 
-                                        e.target.src = "https://placehold.co/600x600/e5e7eb/374151?text=Image+Unavailable";
-                                        e.target.alt = "Image unavailable placeholder";
-                                    }}
-                                />
-                            </div>
-                        </div>
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-red-50 p-6">
+        <p className="text-xl font-bold text-red-700 mb-2">Error</p>
+        <p className="text-lg text-red-600 mb-4">{error}</p>
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+        >
+          <ArrowLeft className="w-5 h-5 mr-2" /> Regresar
+        </button>
+      </div>
+    );
+  }
 
-                        {/* 2. Product Details (Right Column) */}
-                        <div className="md:col-span-1">
-                            {/* Title and Price */}
-                            <h1 className="text-4xl lg:text-5xl font-extrabold text-gray-900 mb-4 leading-tight">
-                                {product.prod_name}
-                            </h1>
-                            <div className="flex items-center mb-6 border-b pb-4">
-                                <span className="text-3xl font-bold text-indigo-700">
-                                    {formattedPrice}
-                                </span>
-                            </div>
+  if (!product) return null;
 
-                            {/* Description */}
-                            <h2 className="text-xl font-semibold text-gray-800 mt-6 mb-3">
-                                Description
-                            </h2>
-                            <p className="text-gray-600 leading-relaxed mb-6">
-                                {product.detail_desc}
-                            </p>
+  const formattedPrice = new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+    minimumFractionDigits: 2,
+  }).format(product.price);
 
-                            {/* Stock, Code, and Color */}
-                            <div className="space-y-4 mb-8">
-                                <div className="flex items-center text-sm font-medium">
-                                    <Palette className="w-5 h-5 text-gray-500 mr-2" />
-                                    <span className="text-gray-900">Color:</span>
-                                    <span className="ml-2 text-indigo-600 font-semibold">{product.perceived_colour_master_name}</span>
-                                </div>
-                                <div className="flex items-center text-sm font-medium">
-                                    <Package className="w-5 h-5 text-gray-500 mr-2" />
-                                    <span className="text-gray-900">SKU:</span>
-                                    <span className="ml-2 text-gray-600">{product.product_code}</span>
-                                </div>
-                                <div className="flex items-center text-lg font-semibold">
-                                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm ${
-                                        isAvailable 
-                                            ? 'bg-green-100 text-green-800' 
-                                            : 'bg-red-100 text-red-800'
-                                    }`}>
-                                        {stockMessage}
-                                    </span>
-                                </div>
-                            </div>
-                            
-                            {/* Action Button */}
-                            <div className='mt-8'>
-                                <CustomButton
-                                    text={isAvailable ? 'Añadir al carrito' : 'Out of Stock'}
-                                    style={'normal'}
-                                    extraStyles={`w-full md:w-auto cursor-pointer bg-indigo-600 text-center py-4 px-8 text-lg text-white rounded-xl font-bold 
-                                    hover:bg-indigo-700 hover:shadow-xl transition duration-200 
-                                    ${!isAvailable ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : ''}`}
-                                    onClick={isAvailable ? handleAddToCart : undefined}
-                                />
-                            </div>
+  const isAvailable = product.stock > 0;
+  const stockMessage = isAvailable
+    ? `En stock: ${product.stock} unidades`
+    : "Agotado";
 
-                        </div>
+  const handleDecrease = () => {
+    setQuantity((prev) => Math.max(1, prev - 1));
+  };
 
-                    </div>
-                </div>              
+  const handleIncrease = () => {
+    if (!isAvailable) return;
+    setQuantity((prev) => {
+      if (product.stock) {
+        return Math.min(product.stock, prev + 1);
+      }
+      return prev + 1;
+    });
+  };
+
+  const handleAddToCart = () => {
+    if (!isAvailable) return;
+
+    addItem({
+      productId: product.external_article_id,
+      qty: quantity,
+      onUnauthenticated: () => {
+        setTimeout(() => navigate("/auth/login"), 3000);
+      },
+    });
+  };
+
+  // Visual star renderer for numeric rating
+  const renderStars = (value) => {
+    if (value === null || value === undefined) return null;
+    const rounded = Math.round(value);
+    return (
+      <div className="flex items-center gap-0.5">
+        {Array.from({ length: 5 }).map((_, idx) => (
+          <Star
+            key={idx}
+            className={`w-4 h-4 ${
+              idx < rounded
+                ? "fill-yellow-400 text-yellow-400"
+                : "text-gray-300"
+            }`}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  const reloadRatings = async () => {
+    const data = await fetchRatings(product.external_article_id, 20, 0);
+    setRatings(data.items || []);
+    setRatingsSummary(data.summary || null);
+  };
+
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    setReviewError("");
+
+    if (!isLoggedIn) {
+      navigate("/auth/login");
+      return;
+    }
+
+    if (!newRating || !newReviewText.trim()) {
+      setReviewError("Por favor selecciona una calificación y escribe un comentario.");
+      return;
+    }
+
+    const userId = user?.id ?? user?.user_id;
+    if (!userId) {
+      setReviewError("No se pudo identificar al usuario para enviar la reseña.");
+      return;
+    }
+
+    setSubmittingReview(true);
+
+    try {
+      const res = await fetch(`${API_URL}/ratings/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          article_id: product.external_article_id,
+          rating: newRating,
+          review_text: newReviewText.trim(),
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "No se pudo enviar la reseña.");
+      }
+
+      toast.success("¡Gracias por tu reseña! 😄");
+
+      // Refresh ratings from backend so summary and list stay in sync
+      await reloadRatings();
+
+      // Reset form
+      setNewRating(0);
+      setNewReviewText("");
+    } catch (err) {
+      console.error("Submit rating error: ", err);
+      setReviewError(err.message || "No se pudo enviar la reseña.");
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#F7F7F7] pt-10 pb-24 font-['Inter']">
+      <div className="max-w-7xl mx-auto px-8">
+        {/* Product details */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-20 bg-white rounded-2xl p-10 shadow-lg">
+          {/* Image */}
+          <div className="flex justify-center">
+            <div className="w-full max-w-xl bg-gray-100 rounded-xl overflow-hidden shadow-inner">
+              <img
+                src={product.image_url}
+                alt={product.prod_name}
+                className="w-full h-full object-contain p-6"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src =
+                    "https://placehold.co/600x600/e5e7eb/6b7280?text=Sin+Imagen";
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Details */}
+          <div className="flex flex-col justify-start">
+            <h1 className="text-4xl font-bold text-dark-500 mb-4 leading-tight">
+              {product.prod_name}
+            </h1>
+
+            <p className="text-3xl font-semibold text-primary-500 mb-6">
+              {formattedPrice}
+            </p>
+
+            <p className="text-dark-400 leading-relaxed mb-6">
+              {product.detail_desc}
+            </p>
+
+            <div className="space-y-4 mb-8">
+              <div className="flex items-center text-dark-500">
+                <Palette className="w-5 h-5 text-gray-500 mr-2" />
+                <span className="font-medium">Color:</span>
+                <span className="ml-2 text-primary-500">
+                  {product.perceived_colour_master_name}
+                </span>
+              </div>
+
+              <div className="flex items-center text-dark-500">
+                <Package className="w-5 h-5 text-gray-500 mr-2" />
+                <span className="font-medium">SKU:</span>
+                <span className="ml-2">{product.product_code}</span>
+              </div>
+
+              <span
+                className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${
+                  isAvailable
+                    ? "bg-green-100 text-green-700"
+                    : "bg-red-100 text-red-700"
+                }`}
+              >
+                {stockMessage}
+              </span>
             </div>
 
-            {/* Cart Confirmation Message (Non-alert replacement) */}
-            {cartMessage && (
-                <div className="fixed bottom-4 right-4 bg-green-600 text-white p-4 rounded-xl shadow-xl transition duration-300 z-50 animate-bounce-in">
-                    {cartMessage}
+            {/* Sizes */}
+            <div className="mb-8">
+              <p className="text-dark-500 font-medium mb-2">
+                Selecciona tu talla
+              </p>
+
+              <div className="flex gap-3 flex-wrap">
+                {availableSizes.map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => setSelectedSize(size)}
+                    className={`
+                      px-4 py-2 rounded-xl border text-sm font-semibold transition
+                      ${
+                        selectedSize === size
+                          ? "bg-primary-500 text-white border-primary-500 shadow-md"
+                          : "bg-white text-dark-500 border-gray-300 hover:border-primary-400 hover:text-primary-500"
+                      }
+                    `}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+
+              {!selectedSize && (
+                <p className="text-xs text-gray-400 mt-2">
+                  (Opcional) Selecciona una talla.
+                </p>
+              )}
+            </div>
+
+            {/* Quantity and add to cart */}
+            <div className="mt-4 space-y-4">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium text-gray-700">
+                  Cantidad:
+                </span>
+
+                <div className="inline-flex items-center rounded-full border border-gray-300 bg-white overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={handleDecrease}
+                    className="px-3 py-1 text-lg font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40"
+                    disabled={quantity <= 1 || !isAvailable}
+                  >
+                    −
+                  </button>
+
+                  <span className="px-4 py-1 text-base font-semibold text-gray-900 min-w-[2.5rem] text-center">
+                    {quantity}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={handleIncrease}
+                    className="px-3 py-1 text-lg font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40"
+                    disabled={!isAvailable || quantity >= product.stock}
+                  >
+                    +
+                  </button>
                 </div>
-            )}
-            
-            {/* Simple CSS for the confirmation animation */}
-            <style jsx="true">{`
-                @keyframes bounce-in {
-                    0% { opacity: 0; transform: translateY(20px); }
-                    100% { opacity: 1; transform: translateY(0); }
-                }
-                .animate-bounce-in {
-                    animation: bounce-in 0.3s ease-out forwards;
-                }
-            `}</style>
+
+                {isAvailable && (
+                  <span className="text-xs text-gray-500">
+                    Máx: {product.stock}
+                  </span>
+                )}
+              </div>
+
+              <CustomButton
+                text={isAvailable ? "Añadir al carrito" : "Agotado"}
+                style={"secondary"}
+                extraStyles={`w-full md:w-auto cursor-pointer bg-indigo-600 text-center py-4 px-8 text-lg text-white rounded-xl font-bold 
+                  hover:bg-indigo-700 hover:shadow-xl transition duration-200 
+                  ${
+                    !isAvailable
+                      ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                      : ""
+                  }`}
+                onClick={isAvailable ? handleAddToCart : undefined}
+              />
+            </div>
+          </div>
         </div>
-    );
+
+        {/* Recommendations */}
+        <div className="mt-20">
+          <h2 className="text-2xl font-semibold text-dark-500 mb-6">
+            También te podría interesar
+          </h2>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
+            {recommendations.length === 0 ? (
+              <p className="text-gray-500 col-span-4">
+                No hay recomendaciones disponibles.
+              </p>
+            ) : (
+              recommendations.map((item) => (
+                <RecommendationCard
+                  key={item.external_article_id}
+                  product={item}
+                />
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Reviews section */}
+        <div className="mt-16">
+          <h2 className="text-2xl font-semibold text-dark-500 mb-3">
+            Opiniones de otros clientes
+          </h2>
+
+          {ratingsSummary && (
+            <div className="flex items-center gap-3 mb-4">
+              {renderStars(ratingsSummary.avg_rating)}
+              <span className="text-sm text-dark-400">
+                {ratingsSummary.avg_rating.toFixed(1)} ·{" "}
+                {ratingsSummary.rating_count}{" "}
+                {ratingsSummary.rating_count === 1 ? "reseña" : "reseñas"}
+              </span>
+            </div>
+          )}
+
+          {(!ratings || ratings.length === 0) ? (
+            <p className="text-gray-500">
+              Aún no hay reseñas para este producto.
+            </p>
+          ) : (
+            <div className="space-y-4 mb-8">
+              {ratings.map((r) => (
+                <div
+                  key={r.rating_id}
+                  className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      {renderStars(r.rating)}
+                      <span className="text-sm font-medium text-dark-500">
+                        {r.rating}/5
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-400">
+                      {r.created_at
+                        ? new Date(r.created_at).toLocaleDateString("es-MX", {
+                            year: "numeric",
+                            month: "short",
+                            day: "2-digit",
+                          })
+                        : ""}
+                    </span>
+                  </div>
+                  <p className="text-sm text-dark-400">{r.review_text}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* New review form */}
+          <div className="mt-8 border-t border-gray-200 pt-6">
+            <h3 className="text-xl font-semibold text-dark-500 mb-3">
+              Escribe tu reseña
+            </h3>
+
+            {!isLoggedIn ? (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-800 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <p>
+                  Inicia sesión para dejar tu opinión sobre este producto.
+                </p>
+                <CustomButton
+                  text="Iniciar sesión"
+                  style="primary"
+                  route="/auth/login"
+                />
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitReview} className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-2">
+                    Tu calificación
+                  </p>
+                  <div className="flex items-center gap-2">
+                    {Array.from({ length: 5 }).map((_, idx) => {
+                      const value = idx + 1;
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setNewRating(value)}
+                          className="p-1"
+                        >
+                          <Star
+                            className={`w-6 h-6 ${
+                              value <= newRating
+                                ? "fill-yellow-400 text-yellow-400"
+                                : "text-gray-300"
+                            }`}
+                          />
+                        </button>
+                      );
+                    })}
+                    <span className="text-xs text-gray-500 ml-1">
+                      {newRating
+                        ? `${newRating}/5 seleccionados`
+                        : "Selecciona una calificación"}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-2">
+                    Comentario
+                  </p>
+                  <textarea
+                    rows={3}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    placeholder="Cuéntale a otros qué te pareció este producto..."
+                    value={newReviewText}
+                    onChange={(e) => setNewReviewText(e.target.value)}
+                  />
+                </div>
+
+                {reviewError && (
+                  <p className="text-xs text-red-600">{reviewError}</p>
+                )}
+
+                <CustomButton
+                  text={
+                    submittingReview
+                      ? "Enviando reseña..."
+                      : "Enviar reseña"
+                  }
+                  style="primary"
+                  type="submit"
+                  extraStyles={`w-full md:w-auto ${
+                    submittingReview ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                />
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default ProductDetail;

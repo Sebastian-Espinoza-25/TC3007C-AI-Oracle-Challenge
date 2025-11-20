@@ -31,3 +31,20 @@
   --color-dark-500: #1B1B1B;
   --color-dark-400: #262626;
 }
+
+.allure-input {
+  @apply w-full rounded-xl border border-gray-300 
+         px-4 py-3 text-base text-dark-500 bg-white
+         focus:outline-none focus:ring-2 focus:ring-primary-500
+         placeholder:text-gray-400;
+}
+
+
+.allure-card {
+  @apply bg-white shadow-2xl rounded-2xl p-12 border border-neutral-400;
+}
+
+
+.allure-title {
+  @apply text-4xl font-bold text-center mb-10 text-dark-500;
+}

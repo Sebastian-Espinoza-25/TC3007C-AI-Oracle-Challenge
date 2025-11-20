@@ -1,16 +1,28 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import CustomButton from "../components/UI/CustomButton";
-import UserIcon from "../assets/user.jpg";
-import CartIcon from "../assets/cart.png";
+
+import { AiOutlineHome } from "react-icons/ai";
+import { MdOutlineShoppingCart } from "react-icons/md";
+import { RiAccountCircleLine, RiLogoutBoxLine } from "react-icons/ri";
+
 import logo from "../assets/logo.jpg";
 
 const Atelier = () => {
   const navigate = useNavigate();
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [conversations, setConversations] = useState([]);
-  const [currentConv, setCurrentConv] = useState({ id: Date.now(), messages: [] });
+  const [currentConv, setCurrentConv] = useState({
+    id: Date.now(),
+    messages: [],
+  });
   const [input, setInput] = useState("");
+  const [showUserMenu, setShowUserMenu] = useState(false);
+
+  const [showGreeting, setShowGreeting] = useState(false);
+  const [showCards, setShowCards] = useState(false);
+
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
 
@@ -25,7 +37,13 @@ const Atelier = () => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [currentConv.messages]);
 
-  // Send text
+  // Greeting + cards animation
+  useEffect(() => {
+    setShowGreeting(true);
+    const timeout = setTimeout(() => setShowCards(true), 1000);
+    return () => clearTimeout(timeout);
+  }, []);
+
   const handleSend = (e) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -38,7 +56,7 @@ const Atelier = () => {
 
     const botMsg = {
       sender: "Atelier",
-      text: "✨ Entendido, pronto te daré una respuesta personalizada.",
+      text: "✨ Entendido. Pronto te daré una respuesta personalizada.",
       timestamp: getTimestamp(),
     };
 
@@ -48,6 +66,7 @@ const Atelier = () => {
     };
 
     setCurrentConv(updatedConv);
+
     setConversations((prev) => {
       const others = prev.filter((c) => c.id !== currentConv.id);
       return [...others, updatedConv];
@@ -56,19 +75,28 @@ const Atelier = () => {
     setInput("");
   };
 
-  //Upload image
+  // Upload image 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
-    if (file) {
+    if (!file) return;
+
+    const preview = URL.createObjectURL(file);
+
       const userMsg = {
         sender: "Usuario",
-        text: `📷 Imagen subida: ${file.name}`,
+      text: (
+        <img
+          src={preview}
+          alt="preview"
+          className="max-w-xs rounded-xl shadow-md"
+        />
+      ),
         timestamp: getTimestamp(),
       };
 
       const botMsg = {
         sender: "Atelier",
-        text: "🪄 He recibido tu imagen. La analizaré más adelante.",
+      text: "🪄 Imagen recibida. La analizaré enseguida.",
         timestamp: getTimestamp(),
       };
 
@@ -78,49 +106,89 @@ const Atelier = () => {
       };
 
       setCurrentConv(updatedConv);
+
       setConversations((prev) => {
         const others = prev.filter((c) => c.id !== currentConv.id);
         return [...others, updatedConv];
       });
-    }
   };
 
-  //New conversation
+  // New chat
   const newConversation = () => {
     setCurrentConv({ id: Date.now(), messages: [] });
+    setShowGreeting(false);
+    setShowCards(false);
+
+    // restart animation
+    setTimeout(() => setShowGreeting(true), 50);
+    setTimeout(() => setShowCards(true), 1050);
+  };
+
+  // Logout
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/auth/login");
   };
 
   return (
-    <div className="h-screen flex flex-col bg-[#F7F8FC] overflow-hidden">
-      {/*Fixed header*/}
-      <div className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-10 py-4 bg-white shadow-sm border-b border-gray-100">
-        <div className="flex-1 flex justify-center items-center gap-3">
-          <img src={logo} alt="Atelier Logo" className="h-10 w-auto" />
+    <div className="min-h-screen flex flex-col bg-[#F7F7F7]">
+
+      {/* Navbar */}
+      <div className="w-full py-6 flex justify-center items-center gap-4 bg-white shadow-sm border-b border-gray-200 relative">
+
+        <img src={logo} alt="logo" className="h-10 w-auto" />
+
           <h1 className="text-2xl font-bold text-[#1B1B5E]">ATELIER</h1>
-        </div>
-        <div className="absolute right-10 flex items-center gap-6">
+
+        <div className="absolute right-10 flex items-center gap-6 text-gray-700">
+
+          {/* Home */}
           <button
             onClick={() => navigate("/")}
-            className="text-gray-700 hover:text-primary-600 font-medium transition"
+            className="text-3xl text-primary-500 hover:text-primary-400 transition"
+            title="Inicio"
           >
-            ← Regresar al main
+            <AiOutlineHome />
           </button>
-          <img
-            src={CartIcon}
-            alt="Carrito"
-            className="h-6 w-6 object-contain cursor-pointer"
-          />
-          <img
-            src={UserIcon}
-            alt="Usuario"
-            className="h-9 w-9 rounded-full object-cover cursor-pointer"
-          />
+
+          {/* Cart */}
+          <button
+            onClick={() => navigate("/cart")}
+            className="text-3xl text-primary-500 hover:text-primary-400 transition"
+            title="Carrito"
+          >
+            <MdOutlineShoppingCart />
+          </button>
+
+          {/* Profile */}
+          <div className="relative">
+            <button
+              onClick={() => setShowUserMenu((prev) => !prev)}
+              className="text-3xl text-primary-500 hover:text-primary-400 transition"
+              title="Cuenta"
+            >
+              <RiAccountCircleLine />
+            </button>
+
+            {showUserMenu && (
+              <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-xl shadow-lg p-2 z-20">
+                <button
+                  onClick={logout}
+                  className="w-full flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg text-gray-700"
+                >
+                  <RiLogoutBoxLine className="text-xl" /> Cerrar sesión
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* General body */}
-      <div className="flex flex-1 overflow-hidden relative mt-20">
-        {/* Sidebar with previous conversations */}
+      {/* Body */}
+      <div className="flex flex-1 overflow-hidden relative">
+
+        {/* Sidebar */}
         <div
           className={`bg-white border-r border-gray-200 p-5 overflow-y-auto transition-all duration-300 ${
             sidebarOpen ? "w-64" : "w-0 p-0"
@@ -131,6 +199,7 @@ const Atelier = () => {
               <h2 className="text-lg font-semibold text-gray-700 mb-3">
                 Conversaciones
               </h2>
+
               {conversations.length === 0 ? (
                 <p className="text-sm text-gray-400">No hay conversaciones aún</p>
               ) : (
@@ -144,7 +213,7 @@ const Atelier = () => {
                       onClick={() => setCurrentConv(conv)}
                     >
                       <p className="text-sm font-medium text-gray-700 truncate">
-                        Chat {new Date(conv.id).toLocaleDateString()}
+                        {new Date(conv.id).toLocaleDateString()}
                       </p>
                       <p className="text-xs text-gray-400 truncate">
                         {conv.messages[conv.messages.length - 1]?.text ||
@@ -165,70 +234,78 @@ const Atelier = () => {
           )}
         </div>
 
-        {/*Toggle sidebar */}
+        {/* Toggle sidebar */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white border border-gray-200 rounded-full shadow-md px-2 py-1 text-gray-500 hover:text-primary-600 transition z-10"
+          className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white border border-gray-200 rounded-full shadow-md px-2 py-1 text-gray-500 hover:text-primary-500 transition z-10"
         >
           {sidebarOpen ? "◀" : "▶"}
         </button>
 
-        {/*Main area */}
+        {/* Main chat */}
         <div className="flex-1 flex flex-col h-full">
-          {/*Messages */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-3">
+
+          <div className="flex-1 overflow-y-auto p-6 space-y-3 pb-32">
+
             {currentConv.messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-700">
-                {/* Initial cards with options of what Atelier can do */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-3xl mb-10">
+              <div className="flex flex-col items-center text-gray-700 mt-20 mb-20">
+
+                {/* Greeting message */}
+                <h2
+                  className={`
+                    text-3xl font-semibold text-primary-500 text-center mb-10
+                    transition-all duration-700 ease-out
+                    ${showGreeting ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}
+                  `}
+                >
+                  Hola, ¿cómo puedo ayudarte hoy?
+                </h2>
+
+                {/* Suggestions cards */}
+                <div
+                  className={`
+                    grid grid-cols-1 sm:grid-cols-2 gap-8 w-full max-w-5xl mx-auto
+                    transition-all duration-700 ease-out
+                    ${showCards ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}
+                  `}
+                >
+
+                  {/* Card 1 */}
                   <div
                     onClick={() =>
                       setInput("Ayúdame a crear un outfit perfecto para una ocasión especial")
                     }
-                    className="flex items-start gap-4 bg-[#F1F3F9] hover:bg-[#E9EBF4] transition rounded-2xl p-6 cursor-pointer shadow-sm"
+                    className="flex items-start gap-4 bg-white border border-neutral-300 hover:border-primary-500 transition rounded-2xl p-6 shadow-md w-full max-w-xl cursor-pointer"
                   >
                     <div className="text-3xl">💡</div>
                     <div>
-                      <h3 className="text-base font-semibold text-gray-800 mb-1">
-                        Crea tu outfit perfecto
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        Si tienes una ocasión especial cerca, puedo ayudarte a
-                        encontrar la prenda perfecta.
-                      </p>
+                      <h3 className="text-base font-semibold text-gray-800 mb-1">Crea tu outfit perfecto</h3>
+                      <p className="text-sm text-gray-600">Dime qué ocasión tienes y te recomiendo el look ideal.</p>
                     </div>
                   </div>
 
+                  {/* Card 2 */}
                   <div
                     onClick={() =>
                       setInput("Analiza mi look o recomiéndame algo basado en una foto")
                     }
-                    className="flex items-start gap-4 bg-[#F1F3F9] hover:bg-[#E9EBF4] transition rounded-2xl p-6 cursor-pointer shadow-sm"
+                    className="flex items-start gap-4 bg-white border border-neutral-300 hover:border-primary-500 transition rounded-2xl p-6 shadow-md w-full max-w-xl cursor-pointer"
                   >
                     <div className="text-3xl">📷</div>
                     <div>
-                      <h3 className="text-base font-semibold text-gray-800 mb-1">
-                        Encuentra tu estilo
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        Sube una foto de tu outfit y lo analizaré.
-                      </p>
+                      <h3 className="text-base font-semibold text-gray-800 mb-1">Encuentra tu estilo</h3>
+                      <p className="text-sm text-gray-600">Sube una foto de tu outfit y lo analizaré.</p>
                     </div>
                   </div>
+
                 </div>
 
-                {/*Welcome text*/}
-                <h2 className="text-3xl font-semibold mb-3">
-                  Hola, ¿cómo puedo ayudarte hoy?
-                </h2>
               </div>
             ) : (
               currentConv.messages.map((msg, index) => (
                 <div
                   key={index}
-                  className={`flex ${
-                    msg.sender === "Usuario" ? "justify-end" : "justify-start"
-                  }`}
+                  className={`flex ${msg.sender === "Usuario" ? "justify-end" : "justify-start"}`}
                 >
                   <div
                     className={`max-w-[70%] px-4 py-2 rounded-2xl shadow-sm ${
@@ -238,28 +315,29 @@ const Atelier = () => {
                     }`}
                   >
                     <p>{msg.text}</p>
-                    <span className="text-xs text-gray-400 block mt-1 text-right">
-                      {msg.timestamp}
-                    </span>
+                    <span className="text-xs text-gray-300 block mt-1 text-right">{msg.timestamp}</span>
                   </div>
                 </div>
               ))
             )}
+
             <div ref={bottomRef} />
           </div>
 
-          {/*Input */}
+          {/* Input */}
           <form
             onSubmit={handleSend}
-            className="flex items-center bg-[#E9EBF4] rounded-full p-3 px-5 shadow-sm m-5"
+            className="fixed bottom-4 left-[300px] right-4 flex items-center bg-white rounded-full p-3 px-5 shadow-md border border-neutral-300"
           >
             <button
               type="button"
               onClick={() => fileInputRef.current.click()}
-              className="text-2xl text-gray-500 hover:text-primary-600 transition mr-3"
+              className="text-2xl text-primary-500 hover:text-primary-400 transition mr-3"
+              title="Añadir imagen"
             >
-              🖼️
+              📎
             </button>
+
             <input
               type="file"
               accept="image/*"
@@ -267,17 +345,16 @@ const Atelier = () => {
               className="hidden"
               onChange={handleFileUpload}
             />
+
             <input
               type="text"
-              placeholder="Haz una petición o comparte una foto"
+              placeholder="Haz una petición o comparte una foto…"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              className="flex-1 bg-transparent outline-none text-gray-700 text-base placeholder-gray-500"
+              className="flex-1 bg-transparent outline-none text-gray-800 text-base placeholder-gray-500"
             />
-            <button
-              type="submit"
-              className="text-2xl text-gray-600 hover:text-primary-600 transition ml-3"
-            >
+
+            <button type="submit" className="text-2xl text-primary-500 hover:text-primary-400 transition ml-3">
               ➤
             </button>
           </form>

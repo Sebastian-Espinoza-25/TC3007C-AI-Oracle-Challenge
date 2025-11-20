@@ -1,13 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FiX, FiRefreshCcw, FiTarget, FiShoppingCart } from 'react-icons/fi';
 import { useDroppable } from '@dnd-kit/core';
-import {useCart} from '../../contexts/CartContext';
+import { useCart } from '../../contexts/CartContext';
 import CustomButton from '../../components/UI/CustomButton';
 import Loader from '../../components/UI/Loader';
 import { useNavigate } from 'react-router-dom';
 
-
-// --- Modal simple para mostrar recomendaciones ---
+// Simple modal to show recommendations after the visual agent finishes
 const RecommendationsModal = ({ isOpen, onClose, items, addItem }) => {
     if (!isOpen || !items || items.length === 0) return null;
 
@@ -24,14 +23,13 @@ const RecommendationsModal = ({ isOpen, onClose, items, addItem }) => {
                             key={item.external_article_id}
                             className="border border-gray-200 rounded-xl p-4 flex items-center justify-between hover:bg-violet-50 transition shadow-sm"
                         >
-                            {/*Product Image */}
+                            {/* Use a placeholder image when the API does not provide one to keep the layout stable */}
                             <img
                                 src={item.image_url || `https://placehold.co/80x80/F5F5DC/000000?text=${item.prod_name.substring(0, 6)}`}
                                 alt={item.prod_name}
                                 className="w-20 h-20 object-cover rounded-lg mr-4 flex-shrink-0"
                             />
 
-                            {/*Product INfo */}
                             <div className="flex-1">
                                 <h3 className="text-lg font-semibold text-gray-800">{item.prod_name}</h3>
                                 <p className="text-sm text-gray-600">
@@ -42,7 +40,7 @@ const RecommendationsModal = ({ isOpen, onClose, items, addItem }) => {
                                 </p>
                             </div>
 
-                            {/*Add to cart */}
+                            {/* Use the shared CustomButton so cart interactions feel consistent across the app */}
                             <CustomButton
                                 text={<FiShoppingCart size={20} />}
                                 onClick={() =>
@@ -51,7 +49,7 @@ const RecommendationsModal = ({ isOpen, onClose, items, addItem }) => {
                                         qty: 1,
                                     })
                                 }
-                                className="!p-3 ml-4 rounded-full" // sobrescribimos padding si tu botón es más grande
+                                className="!p-3 ml-4 rounded-full"
                             />
                         </div>
                     ))}
@@ -74,20 +72,21 @@ const SidebarAgent = ({ isOpen, onClose, product }) => {
     const { isOver, setNodeRef } = useDroppable({
         id: 'sidebar-agent-droppable',
     });
-    const navigate= useNavigate();
+    const navigate = useNavigate();
     
-    const {addItem}= useCart();
+    const { addItem } = useCart();
 
     const [recommendations, setRecommendations] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const[isLoadingRecommendations, setIsLoadingRecommendations]= useState(false);
+    const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
 
+    // Allow overriding API URL via env, but keep a local default for dev/testing
     const BASE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/';
     const ENDPOINT = `${BASE_API_URL}/catalog/visual_agent`;
 
-    // --- Llamar al endpoint cuando se suelta un producto ---
     useEffect(() => {
         const handleProductDrop = async () => {
+            // Skip request when there is no dropped product or ID to avoid useless calls
             if (!product || !product.id) return;
 
             console.log(`🔍 Analizando producto ID: ${product.id}...`);
@@ -111,20 +110,23 @@ const SidebarAgent = ({ isOpen, onClose, product }) => {
                 const data = await response.json();
                 console.log('✅ Recomendaciones recibidas:', data.items);
 
+                // Gracefully handle missing items field to avoid runtime errors from the API shape
                 setRecommendations(data.items || []);
                 setIsModalOpen(true);
             } catch (error) {
                 console.error(' Error obteniendo recomendaciones:', error);
-            }finally{
+            } finally {
                 setIsLoadingRecommendations(false);
             }
         };
 
+        // Trigger recommendation fetch whenever the selected/dropped product changes
         handleProductDrop();
-    }, [product]);
+    }, [product, ENDPOINT]);
 
     if (!isOpen) return null;
 
+    // Change visual feedback when an item is dragged over the drop zone so users understand the target area
     const dropZoneStyles = isOver
         ? 'border-violet-500 shadow-xl scale-[1.02] bg-violet-100/70'
         : 'border-violet-300 bg-violet-50/50';
@@ -134,23 +136,23 @@ const SidebarAgent = ({ isOpen, onClose, product }) => {
 
     return (
         <>
-            {/* Loader */}
-            { isLoadingRecommendations &&(
-                <div className='fixed inset-0 flex items-center justify-center bg-black/40 z-[998]'>
+            {/* Use a full-screen overlay loader to indicate that recommendations are being computed by the agent */}
+            {isLoadingRecommendations && (
+                <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-[998]">
                     <Loader
-                        message= "Buscando recomendaciones mágicas"
+                        message="Buscando recomendaciones mágicas"
                         textColor="#FFFFFF"
                     />
                 </div>
             )}
 
-            {/* Sidebar */}
+            {/* Sidebar container uses a slide-in transform to feel like an assistant panel */}
             <div
                 className={`fixed top-0 right-0 w-full md:w-96 h-screen bg-white shadow-2xl flex flex-col z-50 transition-transform duration-300 ease-in-out transform ${
                     isOpen ? 'translate-x-0' : 'translate-x-full'
                 }`}
             >
-                {/* Header */}
+                {/* Header keeps a clear close action so users are not trapped in the assistant */}
                 <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
                     <h1 className="text-xl font-semibold text-gray-800">
                         Asistente de Producto
@@ -163,13 +165,12 @@ const SidebarAgent = ({ isOpen, onClose, product }) => {
                     </button>
                 </div>
 
-                {/* Zona de drop o producto soltado */}
+                {/* Drop zone doubles as a preview of the dropped product to reinforce the drag-and-drop action */}
                 <div className="flex-grow p-4 overflow-y-auto bg-gray-50 flex flex-col items-center justify-center">
                     <div
                         ref={setNodeRef}
                         className={`text-gray-500 p-6 rounded-xl border-4 border-dashed w-11/12 max-w-sm transition-all duration-300 ${dropZoneStyles}`}
                     >
-                        {/* Si hay producto soltado, lo mostramos */}
                         {product ? (
                             <div className="text-left">
                                 <img
@@ -191,6 +192,7 @@ const SidebarAgent = ({ isOpen, onClose, product }) => {
                             </div>
                         ) : (
                             <>
+                                {/* Animate icon and color when dragging over to give clear drop affordance */}
                                 <div
                                     className={`mx-auto w-20 h-20 ${bgColor} rounded-full flex items-center justify-center mb-6 shadow-xl transition-all duration-300`}
                                 >
@@ -217,19 +219,20 @@ const SidebarAgent = ({ isOpen, onClose, product }) => {
                 </div>
             </div>
 
-            {/* Modal con recomendaciones */}
+            {/* Recommendations modal is rendered outside the sidebar so it can overlay the entire screen */}
             <RecommendationsModal
                 isOpen={isModalOpen}
                 items={recommendations}
                 onClose={() => setIsModalOpen(false)}
                 addItem={(params) =>
                     addItem({
-                    ...params,
-                    onUnauthenticated: () => {
-                        setIsModalOpen(false);
-                        onClose();
-                        setTimeout(() => navigate("/auth/login"), 3000);
-                    },
+                        ...params,
+                        // Redirect unauthenticated users to login after closing overlays to keep UX clean
+                        onUnauthenticated: () => {
+                            setIsModalOpen(false);
+                            onClose();
+                            setTimeout(() => navigate("/auth/login"), 3000);
+                        },
                     })
                 }
             />
