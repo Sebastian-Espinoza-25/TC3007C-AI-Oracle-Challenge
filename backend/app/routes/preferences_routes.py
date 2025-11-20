@@ -11,7 +11,11 @@ def prefs_onboarding(user_id: int):
     if not isinstance(likes, list) or not likes:
         return jsonify({"error": "Debes enviar 'likes': [external_article_id, ...]"}), 400
     updated = svc.record_from_article_ids(user_id, [str(x) for x in likes], event="onboarding")
-    return jsonify({"updated": updated}), 200
+    return jsonify({
+        "updated": updated,
+        "first_time": "N"
+    }), 200
+
 
 @preferences_bp.post("/users/<int:user_id>/prefs/purchase")
 def prefs_purchase(user_id: int):
