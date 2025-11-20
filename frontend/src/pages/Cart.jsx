@@ -2,10 +2,12 @@ import { useState } from "react";
 import { CartProvider, useCart } from "../contexts/CartContext";
 import { useNavigate } from "react-router-dom";
 import Spinner from "../components/UI/Spinner";
+import CustomButton from "../components/UI/CustomButton";
+import { FiTrash2 } from "react-icons/fi";
 
 const Price = ({ value }) => <span>${value?.toFixed(2) ?? "0.00"}</span>;
 
-// Show the current cart count so the user has quick feedback on how many items are in the cart
+// Cart badge with count
 function CartBadge() {
   const { cart, loading } = useCart();
   return (
@@ -18,18 +20,15 @@ function CartBadge() {
   );
 }
 
-
 // ProductCard with real backend data
 export function ProductCard({ product, onAdded }) {
   const { addItem } = useCart();
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
 
-  // Support both shapes of backend data (article_id from catalog vs id from other sources)
   const articleId = product.article_id ?? product.id;
 
   const handleAdd = async () => {
-    // Lock UI while the async cart update is in progress to avoid double-submits
     setBusy(true);
     await addItem({
       productId: String(articleId),
@@ -42,13 +41,11 @@ export function ProductCard({ product, onAdded }) {
     onAdded?.();
   };
 
-  // Centralize navigation logic so it can be reused by multiple clickable elements
   const goToDetail = () => navigate(`/detail/${articleId}`);
 
   return (
     <div className="rounded-2xl border p-3">
-
-      {/* "rapping the image lets the whole visual area act as a link to the detail page */}
+      {/* Clickable image */}
       <div onClick={goToDetail} className="cursor-pointer">
         <img
           src={product.image}
@@ -57,7 +54,7 @@ export function ProductCard({ product, onAdded }) {
         />
       </div>
 
-      {/* Making the title clickable matches common e-commerce behavior and improves discoverability */}
+      {/* Clickable title */}
       <div
         onClick={goToDetail}
         className="mt-2 font-medium line-clamp-1 cursor-pointer hover:text-primary-500"
@@ -80,56 +77,47 @@ export function ProductCard({ product, onAdded }) {
   );
 }
 
-// CartItem
+// CartItem with trash icon when qty === 1
 function CartItem({ item }) {
   const { updateQty, removeItem } = useCart();
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
 
-  // Reuse the same detail route pattern used in ProductCard, but based on the cart item id
   const goToDetail = () => navigate(`/detail/${item.id}`);
 
-  const changeQty = async delta => { 
-    // Prevent the user from spamming +/- while the quantity update is being persisted
-    setBusy(true); 
-    await updateQty(item.id, item.qty + delta); 
-    setBusy(false); 
+  const changeQty = async (delta) => {
+    setBusy(true);
+    await updateQty(item.id, item.qty + delta);
+    setBusy(false);
   };
 
-  const setQty = async q => { 
-    // Enforce a minimum of 1 item and sanitize invalid input before sending to the cart context
-    const qty = Math.max(1, Number(q) || 1); 
-    setBusy(true); 
-    await updateQty(item.id, qty); 
-    setBusy(false); 
+  const setQty = async (q) => {
+    const qty = Math.max(1, Number(q) || 1);
+    setBusy(true);
+    await updateQty(item.id, qty);
+    setBusy(false);
   };
 
-  const remove = async () => { 
-    // Keep UI consistent while the remove operation is processed
-    setBusy(true); 
-    await removeItem(item.id); 
-    setBusy(false); 
+  const remove = async () => {
+    setBusy(true);
+    await removeItem(item.id);
+    setBusy(false);
   };
 
   return (
-    <div
-      className="grid grid-cols-[80px,1fr,120px] gap-4 rounded-xl overflow-hidden bg-white shadow-lg hover:shadow-xl transition-all duration-200 p-4"
-    >
-      
-      {/* Allow the user to open the detail page directly from the thumbnail */}
+    <div className="grid grid-cols-[80px,1fr,120px] gap-4 rounded-xl overflow-hidden bg-white shadow-lg hover:shadow-xl transition-all duration-200 p-4">
+      {/* Thumbnail clickable */}
       <div onClick={goToDetail} className="cursor-pointer">
-        <img 
-          src={item.image} 
-          alt={item.title} 
+        <img
+          src={item.image}
+          alt={item.title}
           className="h-20 w-20 rounded object-cover"
         />
       </div>
 
-      {/* Make the main text area behave like a link while still embedding interactive controls inside */}
+      {/* Middle column */}
       <div onClick={goToDetail} className="cursor-pointer">
-        <div className="font-medium hover:text-primary-500">
-          {item.title}
-        </div>
+        <div className="font-medium hover:text-primary-500">{item.title}</div>
 
         <div className="text-sm text-slate-500">
           Precio unitario <Price value={item.price} />
@@ -137,53 +125,92 @@ function CartItem({ item }) {
 
         <div
           className="mt-3 flex items-center gap-2"
-          onClick={e => e.stopPropagation()} 
-          // Stop the click from bubbling to the parent so using the controls does not trigger navigation
+          onClick={(e) => e.stopPropagation()} // prevent navigation on controls
         >
-          <button disabled={busy} onClick={() => changeQty(-1)} className="h-8 w-8 rounded-full border">-</button>
-          <input 
-            className="h-8 w-14 rounded border px-2 text-center" 
-            value={item.qty} 
-            onChange={e => setQty(e.target.value)} 
+          {/* If qty > 1 show "-", else show trash icon */}
+          {item.qty > 1 ? (
+            <button
+              disabled={busy}
+              onClick={() => changeQty(-1)}
+              className="h-8 w-8 rounded-full border flex items-center justify-center"
+            >
+              -
+            </button>
+          ) : (
+            <button
+              disabled={busy}
+              onClick={remove}
+              className="h-8 w-8 rounded-full border flex items-center justify-center text-secondary-400 hover:bg-red-50"
+              title="Eliminar"
+            >
+              <FiTrash2 size={18} />
+            </button>
+          )}
+
+          <input
+            className="h-8 w-14 rounded border px-2 text-center"
+            value={item.qty}
+            onChange={(e) => setQty(e.target.value)}
           />
-          <button disabled={busy} onClick={() => changeQty(1)} className="h-8 w-8 rounded-full border">+</button>
-          <button disabled={busy} onClick={remove} className="ml-4 text-secondary-400 hover:underline">Quitar</button>
+
+          <button
+            disabled={busy}
+            onClick={() => changeQty(1)}
+            className="h-8 w-8 rounded-full border flex items-center justify-center"
+          >
+            +
+          </button>
+
+          <button
+            disabled={busy}
+            onClick={remove}
+            className="ml-4 text-secondary-400 hover:underline"
+          >
+            Quitar
+          </button>
         </div>
       </div>
 
-      {/* Show the line total so the user understands the cost impact of this item */}
+      {/* Line total */}
       <div className="text-right">
         <div className="font-semibold">
           <Price value={item.price * item.qty} />
         </div>
-        {busy ? (
+        {busy && (
           <div className="mt-2 text-right">
             <Spinner inline size={4} text="Actualizando" />
           </div>
-        ) : null}
+        )}
       </div>
     </div>
   );
 }
 
-
-// CartSummary
+// Cart summary using CustomButton
 function CartSummary() {
   const { cart, clearCart } = useCart();
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
 
-  const onClear = async () => { 
-    // Avoid accidental double-click clear while the operation is being applied
-    setBusy(true); 
-    await clearCart(); 
-    setBusy(false); 
-  };
-
   const shipping = 0;
-  // Apply a simple fixed tax rate to simulate totals without hard-coding decimal artifacts
   const taxes = Math.round(cart.subtotal * 0.09 * 100) / 100;
   const total = cart.subtotal + shipping + taxes;
+
+  const checkoutDisabled = cart.items.length === 0 || busy;
+  const clearDisabled = cart.items.length === 0 || busy;
+
+  const handleCheckout = (e) => {
+    // simulate disabled behavior
+    if (checkoutDisabled) return;
+    navigate("/checkout");
+  };
+
+  const handleClear = async (e) => {
+    if (clearDisabled) return;
+    setBusy(true);
+    await clearCart();
+    setBusy(false);
+  };
 
   return (
     <aside className="rounded-xl overflow-hidden bg-white shadow-lg hover:shadow-xl transition-all duration-200 p-6 w-full">
@@ -191,7 +218,9 @@ function CartSummary() {
       <div className="space-y-2 text-sm">
         <div className="flex items-center justify-between">
           <span>Subtotal</span>
-          <span className="font-medium"><Price value={cart.subtotal} /></span>
+          <span className="font-medium">
+            <Price value={cart.subtotal} />
+          </span>
         </div>
         <div className="flex items-center justify-between">
           <span>Envío</span>
@@ -199,31 +228,40 @@ function CartSummary() {
         </div>
         <div className="flex items-center justify-between">
           <span>Impuestos</span>
-          <span className="font-medium"><Price value={taxes} /></span>
+          <span className="font-medium">
+            <Price value={taxes} />
+          </span>
         </div>
         <hr className="my-2" />
         <div className="flex items-center justify-between text-base font-semibold">
           <span>Total</span>
-          <span><Price value={total} /></span>
+          <span>
+            <Price value={total} />
+          </span>
         </div>
       </div>
 
       <div className="mt-4 flex flex-col gap-3">
-        {/* Prevent navigating to checkout with an empty cart or during a pending operation */}
-        <button
-          disabled={cart.items.length === 0 || busy}
-          onClick={() => navigate('/checkout')}
-          className="h-11 rounded-xl bg-primary-500 text-white disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Ir a Checkout
-        </button>
-        <button
-          onClick={onClear}
-          disabled={cart.items.length === 0 || busy}
-          className="h-11 rounded-xl border"
-        >
-          Vaciar carrito
-        </button>
+        {/* Checkout button using CustomButton */}
+        <CustomButton
+          text="Ir a Checkout"
+          style="primary"
+          extraStyles={`h-11 w-full rounded-xl ${
+            checkoutDisabled ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+          onClick={handleCheckout}
+        />
+
+        {/* Clear cart button using CustomButton */}
+        <CustomButton
+          text="Vaciar carrito"
+          style="cancel"
+          extraStyles={`h-11 w-full ${
+            clearDisabled ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+          onClick={handleClear}
+        />
+
         {busy && (
           <div className="text-center">
             <Spinner inline text="Procesando" />
@@ -233,7 +271,6 @@ function CartSummary() {
     </aside>
   );
 }
-
 
 // Main Cart Page
 export default function CartPage({ products = [] }) {
@@ -249,7 +286,7 @@ export default function CartPage({ products = [] }) {
           <section className="mb-8">
             <h2 className="mb-3 text-lg font-semibold">Catálogo</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              {products.map(p => (
+              {products.map((p) => (
                 <ProductCard key={p.article_id ?? p.id} product={p} />
               ))}
             </div>
@@ -265,25 +302,32 @@ export default function CartPage({ products = [] }) {
 function MainCartContent() {
   const { cart, loading, error } = useCart();
 
-  if (loading) return (
-    <div className="space-y-6">
-      {[...Array(3)].map((_, i) => <SkeletonRow key={i} />)}
-      <SkeletonSummary />
-    </div>
-  );
+  if (loading)
+    return (
+      <div className="space-y-6">
+        {[...Array(3)].map((_, i) => (
+          <SkeletonRow key={i} />
+        ))}
+        <SkeletonSummary />
+      </div>
+    );
 
-  if (error) return <div className="rounded-2xl border p-6 text-red-700">{error}</div>;
+  if (error)
+    return <div className="rounded-2xl border p-6 text-red-700">{error}</div>;
 
-  if (cart.items.length === 0) return (
-    <div className="rounded-2xl border p-10 text-center">
-      <p className="text-slate-600">Tu carrito está vacío.</p>
-    </div>
-  );
+  if (cart.items.length === 0)
+    return (
+      <div className="rounded-2xl border p-10 text-center">
+        <p className="text-slate-600">Tu carrito está vacío.</p>
+      </div>
+    );
 
   return (
     <div className="space-y-6">
       <div className="space-y-4">
-        {cart.items.map(item => <CartItem key={item.id} item={item} />)}
+        {cart.items.map((item) => (
+          <CartItem key={item.id} item={item} />
+        ))}
       </div>
       <CartSummary />
     </div>
