@@ -78,12 +78,14 @@ def create_app():
                    "remove_item": "DELETE /api/cart/items/<external_article_id>",
                    "clear_cart": "DELETE /api/cart/"
                },
-               "payments": {
-                   "create_payment": "POST /api/payments/create",
-                   "add_method": "POST /api/payments/method",
-                   "list_methods": "GET /api/payments/methods/<client_id>",
-                   "get_invoices": "GET /api/payments/invoices/<client_id>"
-               }
+              "payments": {
+                    "create_intent": "POST /api/payments/intent",
+                    "webhook": "POST /api/payments/webhook",
+                    "list_methods": "GET /api/payments/methods",
+                    "add_method": "POST /api/payments/methods",
+                    "get_invoices": "GET /api/payments/invoices"
+                    }
+
            }
        }, 200
 
