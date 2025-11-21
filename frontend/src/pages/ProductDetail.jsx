@@ -4,9 +4,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useCart } from "../contexts/CartContext";
 import { useAuth } from "../contexts/AuthContext";
 import CustomButton from "../components/UI/CustomButton";
+import Modal from "../components/UI/Modal";
 import { toast } from "react-toastify";
 
 const API_URL = import.meta.env.VITE_API_URL;
+const MIN_REVIEW_LENGTH = 30;
 
 // Visual agent recommendations
 const SimilarProduct = async (productId, k = 4) => {
@@ -91,7 +93,7 @@ const RecommendationCard = ({ product }) => {
 };
 
 const ProductDetail = () => {
-  const { productId } = useParams(); // external_article_id, e.g. "0145872001"
+  const { productId } = useParams(); // external_article_id
   const navigate = useNavigate();
   const { addItem } = useCart();
   const { user, token, isLoggedIn } = useAuth();
@@ -103,11 +105,12 @@ const ProductDetail = () => {
   const [ratings, setRatings] = useState([]);
   const [ratingsSummary, setRatingsSummary] = useState(null);
 
-  // New review form
+  // New review form state
   const [newRating, setNewRating] = useState(0);
   const [newReviewText, setNewReviewText] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewError, setReviewError] = useState("");
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -122,7 +125,6 @@ const ProductDetail = () => {
         setIsLoading(true);
         setError(null);
 
-        // Fetch product, recommendations and ratings in parallel
         const [productData, recommendationsData, ratingsData] =
           await Promise.all([
             fetchProduct(productId),
@@ -214,7 +216,6 @@ const ProductDetail = () => {
     });
   };
 
-  // Visual star renderer for numeric rating
   const renderStars = (value) => {
     if (value === null || value === undefined) return null;
     const rounded = Math.round(value);
@@ -240,6 +241,29 @@ const ProductDetail = () => {
     setRatingsSummary(data.summary || null);
   };
 
+  const userId = user?.id ?? user?.user_id;
+  const hasUserReview =
+    isLoggedIn && userId && ratings.some((r) => r.user_id === userId);
+
+  const handleOpenReviewModal = () => {
+    if (!isLoggedIn) {
+      navigate("/auth/login");
+      return;
+    }
+    if (hasUserReview) {
+      toast.info("Ya has enviado una reseña para este producto.");
+      return;
+    }
+    setReviewError("");
+    setIsReviewModalOpen(true);
+  };
+
+  const handleCloseReviewModal = () => {
+    if (submittingReview) return;
+    setReviewError("");
+    setIsReviewModalOpen(false);
+  };
+
   const handleSubmitReview = async (e) => {
     e.preventDefault();
     setReviewError("");
@@ -249,14 +273,31 @@ const ProductDetail = () => {
       return;
     }
 
-    if (!newRating || !newReviewText.trim()) {
-      setReviewError("Por favor selecciona una calificación y escribe un comentario.");
+    if (!newRating) {
+      setReviewError("Selecciona una calificación de 1 a 5 estrellas.");
       return;
     }
 
-    const userId = user?.id ?? user?.user_id;
+    const trimmed = newReviewText.trim();
+    if (!trimmed) {
+      setReviewError("Escribe un comentario sobre el producto.");
+      return;
+    }
+
+    if (trimmed.length < MIN_REVIEW_LENGTH) {
+      setReviewError(
+        `Tu reseña debe tener al menos ${MIN_REVIEW_LENGTH} caracteres.`
+      );
+      return;
+    }
+
     if (!userId) {
       setReviewError("No se pudo identificar al usuario para enviar la reseña.");
+      return;
+    }
+
+    if (hasUserReview) {
+      setReviewError("Ya has enviado una reseña para este producto.");
       return;
     }
 
@@ -273,7 +314,7 @@ const ProductDetail = () => {
           user_id: userId,
           article_id: product.external_article_id,
           rating: newRating,
-          review_text: newReviewText.trim(),
+          review_text: trimmed,
         }),
       });
 
@@ -284,12 +325,11 @@ const ProductDetail = () => {
 
       toast.success("¡Gracias por tu reseña! 😄");
 
-      // Refresh ratings from backend so summary and list stay in sync
       await reloadRatings();
 
-      // Reset form
       setNewRating(0);
       setNewReviewText("");
+      setIsReviewModalOpen(false);
     } catch (err) {
       console.error("Submit rating error: ", err);
       setReviewError(err.message || "No se pudo enviar la reseña.");
@@ -470,27 +510,50 @@ const ProductDetail = () => {
 
         {/* Reviews section */}
         <div className="mt-16">
-          <h2 className="text-2xl font-semibold text-dark-500 mb-3">
-            Opiniones de otros clientes
-          </h2>
-
-          {ratingsSummary && (
-            <div className="flex items-center gap-3 mb-4">
-              {renderStars(ratingsSummary.avg_rating)}
-              <span className="text-sm text-dark-400">
-                {ratingsSummary.avg_rating.toFixed(1)} ·{" "}
-                {ratingsSummary.rating_count}{" "}
-                {ratingsSummary.rating_count === 1 ? "reseña" : "reseñas"}
-              </span>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-2xl font-semibold text-dark-500">
+                Opiniones de otros clientes
+              </h2>
+              {ratingsSummary && (
+                <div className="flex items-center gap-3 mt-2">
+                  {renderStars(ratingsSummary.avg_rating)}
+                  <span className="text-sm text-dark-400">
+                    {ratingsSummary.avg_rating.toFixed(1)} ·{" "}
+                    {ratingsSummary.rating_count}{" "}
+                    {ratingsSummary.rating_count === 1 ? "reseña" : "reseñas"}
+                  </span>
+                </div>
+              )}
             </div>
-          )}
+
+            <div className="flex flex-col items-start md:items-end gap-1">
+              <CustomButton
+                text={
+                  hasUserReview
+                    ? "Ya enviaste una reseña"
+                    : "¡Ayúdanos con tu reseña!"
+                }
+                style="primary"
+                extraStyles={`mt-2 md:mt-0 ${
+                  hasUserReview ? "opacity-60 cursor-not-allowed" : ""
+                }`}
+                onClick={hasUserReview ? undefined : handleOpenReviewModal}
+              />
+              {hasUserReview && (
+                <p className="text-xs text-gray-500">
+                  Solo puedes dejar una reseña por producto.
+                </p>
+              )}
+            </div>
+          </div>
 
           {(!ratings || ratings.length === 0) ? (
             <p className="text-gray-500">
-              Aún no hay reseñas para este producto.
+              Parece ser que no hay reseñas, ¡sé la primera!
             </p>
           ) : (
-            <div className="space-y-4 mb-8">
+            <div className="space-y-4 mb-4">
               {ratings.map((r) => (
                 <div
                   key={r.rating_id}
@@ -518,92 +581,79 @@ const ProductDetail = () => {
               ))}
             </div>
           )}
-
-          {/* New review form */}
-          <div className="mt-8 border-t border-gray-200 pt-6">
-            <h3 className="text-xl font-semibold text-dark-500 mb-3">
-              Escribe tu reseña
-            </h3>
-
-            {!isLoggedIn ? (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-800 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <p>
-                  Inicia sesión para dejar tu opinión sobre este producto.
-                </p>
-                <CustomButton
-                  text="Iniciar sesión"
-                  style="primary"
-                  route="/auth/login"
-                />
-              </div>
-            ) : (
-              <form onSubmit={handleSubmitReview} className="space-y-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-700 mb-2">
-                    Tu calificación
-                  </p>
-                  <div className="flex items-center gap-2">
-                    {Array.from({ length: 5 }).map((_, idx) => {
-                      const value = idx + 1;
-                      return (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => setNewRating(value)}
-                          className="p-1"
-                        >
-                          <Star
-                            className={`w-6 h-6 ${
-                              value <= newRating
-                                ? "fill-yellow-400 text-yellow-400"
-                                : "text-gray-300"
-                            }`}
-                          />
-                        </button>
-                      );
-                    })}
-                    <span className="text-xs text-gray-500 ml-1">
-                      {newRating
-                        ? `${newRating}/5 seleccionados`
-                        : "Selecciona una calificación"}
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-sm font-medium text-gray-700 mb-2">
-                    Comentario
-                  </p>
-                  <textarea
-                    rows={3}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                    placeholder="Cuéntale a otros qué te pareció este producto..."
-                    value={newReviewText}
-                    onChange={(e) => setNewReviewText(e.target.value)}
-                  />
-                </div>
-
-                {reviewError && (
-                  <p className="text-xs text-red-600">{reviewError}</p>
-                )}
-
-                <CustomButton
-                  text={
-                    submittingReview
-                      ? "Enviando reseña..."
-                      : "Enviar reseña"
-                  }
-                  style="primary"
-                  type="submit"
-                  extraStyles={`w-full md:w-auto ${
-                    submittingReview ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
-                />
-              </form>
-            )}
-          </div>
         </div>
       </div>
+
+      {/* Review Modal using shared Modal component */}
+      <Modal
+        open={isReviewModalOpen}
+        onClose={handleCloseReviewModal}
+        title="Cuéntanos tu experiencia con este producto"
+      >
+        <form onSubmit={handleSubmitReview} className="space-y-4">
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-2">
+              Tu calificación
+            </p>
+            <div className="flex items-center gap-2">
+              {Array.from({ length: 5 }).map((_, idx) => {
+                const value = idx + 1;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setNewRating(value)}
+                    className="p-1"
+                  >
+                    <Star
+                      className={`w-6 h-6 ${
+                        value <= newRating
+                          ? "fill-yellow-400 text-yellow-400"
+                          : "text-gray-300"
+                      }`}
+                    />
+                  </button>
+                );
+              })}
+              <span className="text-xs text-gray-500 ml-1">
+                {newRating
+                  ? `${newRating}/5 seleccionados`
+                  : "Selecciona una calificación"}
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-2">
+              Comentario
+            </p>
+            <textarea
+              rows={3}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              placeholder={`Cuéntale a otros qué te pareció este producto (mínimo ${MIN_REVIEW_LENGTH} caracteres)...`}
+              value={newReviewText}
+              onChange={(e) => setNewReviewText(e.target.value)}
+            />
+          </div>
+
+          {reviewError && (
+            <p className="text-xs text-red-600">{reviewError}</p>
+          )}
+
+          <div className="mt-4 flex justify-end">
+            <CustomButton
+              text={
+                submittingReview ? "Enviando reseña..." : "Enviar reseña"
+              }
+              style="primary"
+              type="submit"
+              extraStyles={`${
+                submittingReview ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            />
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };
