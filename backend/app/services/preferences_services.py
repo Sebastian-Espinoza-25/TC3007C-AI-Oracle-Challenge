@@ -104,6 +104,18 @@ def _merge_rows(pool, rows: List[Dict]) -> int:
         conn.commit()
     return len(rows)
 
+def _set_first_time_done(pool, user_id: int) -> None:
+    """
+    Marca que el usuario YA completó el formulario de preferencias.
+    """
+    with pool.acquire() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE app_user SET first_time = 'N' WHERE user_id = :1",
+                [int(user_id)]
+            )
+        conn.commit()
+
 def record_from_article_ids(user_id: int, article_ids: List[str], event: str) -> int:
     pool = current_app.config["DB_POOL"]
     weights = ONBOARDING_WEIGHTS if event == "onboarding" else PURCHASE_WEIGHTS
@@ -111,7 +123,15 @@ def record_from_article_ids(user_id: int, article_ids: List[str], event: str) ->
     rows: List[Dict] = []
     for p in prods:
         rows.extend(_rows_for_article(user_id, p, weights))
-    return _merge_rows(pool, rows)
+
+    changed = _merge_rows(pool, rows)
+
+    # Si es el formulario inicial ("onboarding"),
+    # marcamos que el usuario YA NO es de primera vez.
+    if event == "onboarding" and changed > 0:
+        _set_first_time_done(pool, user_id)
+
+    return changed
 
 def record_from_order(user_id: int, order_id: int) -> int:
     pool = current_app.config["DB_POOL"]
