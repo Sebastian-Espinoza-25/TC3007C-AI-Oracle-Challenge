@@ -55,7 +55,7 @@ def _fetch_user_bank(pool, user_id: int) -> str:
             cur.execute(
                 """
                 SELECT bank
-                FROM payment_methods
+                FROM payment_methodss
                 WHERE user_id = :1
                 ORDER BY created_at DESC
                 FETCH FIRST 1 ROWS ONLY
