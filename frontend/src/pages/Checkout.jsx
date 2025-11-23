@@ -1,82 +1,266 @@
-import React, { useState } from "react";
-import { loadStripe } from "@stripe/stripe-js";
-import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
-import Modal from "../components/UI/Modal";
-import { useAuth } from "../contexts/AuthContext";
-import { useCart } from "../contexts/CartContext";
-import Spinner from "../components/UI/Spinner";
-import { toast } from "react-toastify";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useCart } from "../contexts/CartContext";
+import { useAuth } from "../contexts/AuthContext";
+import Spinner from "../components/UI/Spinner";
 
-// Stripe public key must be set in Vite env as VITE_STRIPE_PUBLISHABLE_KEY
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || "");
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  CardElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
 
-function CheckoutForm({ clientSecret, onClose }) {
+// Carga la clave pública de Stripe desde .env
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+
+const Price = ({ value }) => (
+  <span>${Number(value ?? 0).toFixed(2)}</span>
+);
+
+function CheckoutPage() {
+  const { cart, clearCart } = useCart();
+  const { token } = useAuth();
+  const navigate = useNavigate();
+  const API_URL = import.meta.env.VITE_API_URL;
+
+  const [clientSecret, setClientSecret] = useState(null);
+  const [loadingIntent, setLoadingIntent] = useState(false);
+  const [error, setError] = useState("");
+
+  const shipping = 0;
+  const taxes = useMemo(
+    () => Math.round(cart.subtotal * 0.09 * 100) / 100,
+    [cart.subtotal]
+  );
+  const total = useMemo(
+    () => cart.subtotal + shipping + taxes,
+    [cart.subtotal, taxes]
+  );
+
+  // Si el carrito está vacío, manda al usuario de regreso al carrito
+  useEffect(() => {
+    if (!cart || cart.items.length === 0) {
+      navigate("/cart");
+    }
+  }, [cart, navigate]);
+
+  // Crear PaymentIntent en tu backend: POST /payment/intent
+  useEffect(() => {
+    if (!cart || cart.items.length === 0) return;
+    if (!token) {
+      // Si no hay token, lo ideal es mandarlo a login
+      navigate("/login");
+      return;
+    }
+
+    const createPaymentIntent = async () => {
+      setLoadingIntent(true);
+      setError("");
+
+      try {
+        const res = await fetch(`${API_URL}/payments/intent`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            amount: total, // en MXN; tu backend ya multiplica *100
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || data.message || "No se pudo iniciar el pago.");
+        }
+
+        setClientSecret(data.client_secret);
+      } catch (err) {
+        console.error(err);
+        setError(err.message || "Ocurrió un error al crear el pago.");
+      } finally {
+        setLoadingIntent(false);
+      }
+    };
+
+    createPaymentIntent();
+  }, [API_URL, cart, total, token, navigate]);
+
+  if (!cart || cart.items.length === 0) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-8">
+        <p className="rounded-2xl border p-6 text-center text-slate-600">
+          Tu carrito está vacío. Agrega algunos productos antes de realizar el pago.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-8">
+      <header className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Checkout</h1>
+        <div className="text-sm text-slate-600">
+          Total a pagar:{" "}
+          <span className="font-semibold">
+            <Price value={total} />
+          </span>
+        </div>
+      </header>
+
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr),minmax(0,1.2fr)]">
+        {/* Columna izquierda: formulario de pago */}
+        <section className="rounded-2xl bg-white p-6 shadow-lg">
+          <h2 className="mb-4 text-lg font-semibold">Datos de pago</h2>
+
+          <p className="mb-3 text-xs text-slate-500">
+            Pagos procesados de forma segura con Stripe. Solo tarjetas de
+            crédito y débito.
+          </p>
+
+          {loadingIntent && (
+            <div className="mb-4 flex items-center gap-2 text-sm text-slate-600">
+              <Spinner inline text="Preparando el pago seguro" />
+            </div>
+          )}
+
+          {error && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          {clientSecret && (
+            <Elements
+              stripe={stripePromise}
+              options={{
+                clientSecret,
+                appearance: { theme: "stripe" },
+              }}
+            >
+              <CardCheckoutForm
+                total={total}
+                clientSecret={clientSecret}
+                clearCart={clearCart}
+                onSuccess={() => navigate("/")} // O "/checkout/success"
+              />
+            </Elements>
+          )}
+
+          {!clientSecret && !loadingIntent && !error && (
+            <p className="text-sm text-slate-500">
+              No se pudo inicializar el pago. Intenta recargar la página.
+            </p>
+          )}
+        </section>
+
+        {/* Columna derecha: resumen del pedido */}
+        <aside className="rounded-2xl bg-white p-6 shadow-lg">
+          <h2 className="mb-4 text-lg font-semibold">Resumen del pedido</h2>
+
+          <div className="mb-4 max-h-64 space-y-3 overflow-y-auto pr-2">
+            {cart.items.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between text-sm"
+              >
+                <div className="flex flex-col">
+                  <span className="font-medium">{item.title}</span>
+                  <span className="text-slate-500">
+                    {item.qty} × <Price value={item.price} />
+                  </span>
+                </div>
+                <div className="font-semibold">
+                  <Price value={item.price * item.qty} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <hr className="my-3" />
+
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span>Subtotal</span>
+              <span className="font-medium">
+                <Price value={cart.subtotal} />
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Envío</span>
+              <span className="font-medium">Gratis</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Impuestos</span>
+              <span className="font-medium">
+                <Price value={taxes} />
+              </span>
+            </div>
+            <div className="flex justify-between border-t pt-2 text-base font-semibold">
+              <span>Total</span>
+              <span>
+                <Price value={total} />
+              </span>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function CardCheckoutForm({ total, clientSecret, clearCart, onSuccess }) {
   const stripe = useStripe();
   const elements = useElements();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address1, setAddress1] = useState("");
-  const [address2, setAddress2] = useState("");
-  const [city, setCity] = useState("");
-  const [stateVal, setStateVal] = useState("");
-  const [postalCode, setPostalCode] = useState("");
-  const [country, setCountry] = useState("");
-  const [saveCard, setSaveCard] = useState(false);
+
+  const [billingName, setBillingName] = useState("");
+  const [billingEmail, setBillingEmail] = useState("");
   const [processing, setProcessing] = useState(false);
-  const navigate = useNavigate();
+  const [cardError, setCardError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!stripe || !elements) return;
+
     setProcessing(true);
+    setCardError("");
 
-    // Basic client-side validation
-    if (!name || !email || !address1 || !city || !postalCode || !country) {
-      toast.error("Por favor completa los campos requeridos: nombre, email, dirección, ciudad, código postal y país.");
-      setProcessing(false);
-      return;
-    }
-
-    const card = elements.getElement(CardElement);
-    if (!card) {
-      toast.error("Error: no se encontró el elemento de tarjeta.");
-      setProcessing(false);
-      return;
-    }
+    const cardElement = elements.getElement(CardElement);
 
     try {
-      const result = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: {
-            card,
+      const { error, paymentIntent } = await stripe.confirmCardPayment(
+        clientSecret,
+        {
+          payment_method: {
+            card: cardElement,
             billing_details: {
-              name: name || undefined,
-              email: email || undefined,
-              phone: phone || undefined,
-              address: {
-                line1: address1 || undefined,
-                line2: address2 || undefined,
-                city: city || undefined,
-                state: stateVal || undefined,
-                postal_code: postalCode || undefined,
-                country: country || undefined,
-              },
+              name: billingName || undefined,
+              email: billingEmail || undefined,
             },
           },
-      });
+        }
+      );
 
-      if (result.error) {
-        toast.error(`Pago fallido: ${result.error.message}`);
-      } else if (result.paymentIntent && result.paymentIntent.status === "succeeded") {
-        toast.success("Pago exitoso. Gracias por tu compra.");
-        onClose?.();
-        navigate("/");
+      if (error) {
+        console.error(error);
+        setCardError(error.message || "Error al procesar el pago.");
+        setProcessing(false);
+        return;
+      }
+
+      if (paymentIntent && paymentIntent.status === "succeeded") {
+        // El webhook /payment/webhook se encargará de actualizar la BD y crear la invoice
+        await clearCart();
+        onSuccess?.();
       } else {
-        toast.info("Pago procesándose. Revisa tu correo para confirmar.");
+        setCardError("No se pudo completar el pago. Inténtalo de nuevo.");
       }
     } catch (err) {
-      toast.error(err.message || "Error procesando el pago.");
+      console.error(err);
+      setCardError("Ocurrió un error inesperado. Intenta de nuevo.");
     } finally {
       setProcessing(false);
     }
@@ -84,160 +268,84 @@ function CheckoutForm({ clientSecret, onClose }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-slate-700">Nombre</label>
-        <input value={name} onChange={e => setName(e.target.value)} className="mt-1 block w-full rounded border px-3 py-2" placeholder="Nombre en la tarjeta" />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-slate-700">Email</label>
-        <input value={email} onChange={e => setEmail(e.target.value)} className="mt-1 block w-full rounded border px-3 py-2" placeholder="tu@ejemplo.com" />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-slate-700">Teléfono</label>
-        <input value={phone} onChange={e => setPhone(e.target.value)} className="mt-1 block w-full rounded border px-3 py-2" placeholder="+52 1 55 0000 0000" />
-      </div>
-
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-        <div>
-          <label className="block text-sm font-medium text-slate-700">Dirección (línea 1)</label>
-          <input value={address1} onChange={e => setAddress1(e.target.value)} className="mt-1 block w-full rounded border px-3 py-2" placeholder="Calle y número" />
+      {/* Datos de facturación básicos */}
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-slate-700">
+            Nombre en la tarjeta
+          </label>
+          <input
+            type="text"
+            value={billingName}
+            onChange={(e) => setBillingName(e.target.value)}
+            className="h-10 rounded-lg border px-3 text-sm outline-none focus:ring-2 focus:ring-slate-900/50"
+            placeholder="Nombre completo"
+          />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700">Dirección (línea 2)</label>
-          <input value={address2} onChange={e => setAddress2(e.target.value)} className="mt-1 block w-full rounded border px-3 py-2" placeholder="Interior, colonia, etc. (opcional)" />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-        <div>
-          <label className="block text-sm font-medium text-slate-700">Ciudad</label>
-          <input value={city} onChange={e => setCity(e.target.value)} className="mt-1 block w-full rounded border px-3 py-2" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700">Estado / Provincia</label>
-          <input value={stateVal} onChange={e => setStateVal(e.target.value)} className="mt-1 block w-full rounded border px-3 py-2" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700">Código postal</label>
-          <input value={postalCode} onChange={e => setPostalCode(e.target.value)} className="mt-1 block w-full rounded border px-3 py-2" />
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-slate-700">
+            Correo electrónico
+          </label>
+          <input
+            type="email"
+            value={billingEmail}
+            onChange={(e) => setBillingEmail(e.target.value)}
+            className="h-10 rounded-lg border px-3 text-sm outline-none focus:ring-2 focus:ring-slate-900/50"
+            placeholder="tucorreo@ejemplo.com"
+          />
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-slate-700">País</label>
-        <input value={country} onChange={e => setCountry(e.target.value)} className="mt-1 block w-full rounded border px-3 py-2" placeholder="MX" />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-slate-700">Tarjeta</label>
-        <div className="mt-2 rounded border px-3 py-3 bg-white">
-          <CardElement options={{ hidePostalCode: true }} />
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between gap-3">
-        <label className="inline-flex items-center gap-2">
-          <input type="checkbox" checked={saveCard} onChange={e => setSaveCard(e.target.checked)} />
-          <span className="text-sm">Guardar tarjeta para próximos pagos</span>
+      {/* CardElement de Stripe */}
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-medium text-slate-700">
+          Datos de la tarjeta
         </label>
-        <div className="ml-auto flex items-center gap-3">
-          <button type="button" onClick={onClose} className="rounded-xl border px-4 py-2">Cancelar</button>
-          <button type="submit" disabled={processing || !stripe} className="rounded-xl bg-indigo-700 px-4 py-2 text-white disabled:opacity-60">
-            {processing ? <Spinner inline size={4} text="Procesando" /> : "Pagar ahora"}
-          </button>
+        <div className="rounded-xl border px-3 py-3">
+          <CardElement
+            options={{
+              style: {
+                base: {
+                  fontSize: "16px",
+                  "::placeholder": {
+                    color: "#94a3b8",
+                  },
+                },
+                invalid: {
+                  color: "#ef4444",
+                },
+              },
+            }}
+          />
         </div>
+        <p className="text-xs text-slate-400">
+          Se aceptan tarjetas de crédito y débito.
+        </p>
       </div>
+
+      {cardError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+          {cardError}
+        </div>
+      )}
+
+      <button
+        type="submit"
+        disabled={!stripe || processing}
+        className="mt-2 flex h-11 w-full items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {processing ? (
+          <div className="flex items-center gap-2">
+            <Spinner inline text="Procesando pago" />
+          </div>
+        ) : (
+          <>
+            Pagar <span className="ml-1"><Price value={total} /></span>
+          </>
+        )}
+      </button>
     </form>
   );
 }
 
-export default function Checkout() {
-  const { cart } = useCart();
-  const { token, isLoggedIn } = useAuth();
-  const [open, setOpen] = useState(false);
-  const [clientSecret, setClientSecret] = useState("");
-  const [loadingIntent, setLoadingIntent] = useState(false);
-
-  const total = (() => {
-    const shipping = 0;
-    const taxes = Math.round(cart.subtotal * 0.09 * 100) / 100;
-    return Math.round((cart.subtotal + shipping + taxes) * 100) / 100;
-  })();
-
-  const API_URL = import.meta.env.VITE_API_URL;
-
-  const openModal = async () => {
-    if (!isLoggedIn || !token) {
-      toast.info("Debes iniciar sesión para proceder al pago.");
-      return;
-    }
-    if (!cart || cart.items.length === 0) {
-      toast.info("Tu carrito está vacío.");
-      return;
-    }
-
-    try {
-      setLoadingIntent(true);
-      const res = await fetch(`${API_URL}/payments/payment/intent`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ amount: total }),
-      });
-
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j?.error || `Error creando PaymentIntent: ${res.status}`);
-      }
-
-      const data = await res.json();
-      setClientSecret(data.client_secret || data.client_secret || data.client_secret);
-      setOpen(true);
-    } catch (e) {
-      toast.error(e.message || "No se pudo iniciar el pago.");
-    } finally {
-      setLoadingIntent(false);
-    }
-  };
-
-  return (
-    <div className="flex-grow p-6">
-      <h1 className="text-2xl font-bold mb-4">Checkout</h1>
-
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <section className="rounded-2xl border p-6">
-          <h2 className="mb-3 text-lg font-semibold">Resumen del pedido</h2>
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center justify-between"><span>Subtotal</span><span className="font-medium">${cart.subtotal?.toFixed(2) ?? "0.00"}</span></div>
-            <div className="flex items-center justify-between"><span>Envío</span><span className="font-medium">Gratis</span></div>
-            <div className="flex items-center justify-between"><span>Impuestos</span><span className="font-medium">${(Math.round(cart.subtotal * 0.09 * 100) / 100).toFixed(2)}</span></div>
-            <hr className="my-2" />
-            <div className="flex items-center justify-between text-base font-semibold"><span>Total</span><span>${total.toFixed(2)}</span></div>
-          </div>
-          <div className="mt-4">
-            <button onClick={openModal} disabled={cart.items.length === 0 || loadingIntent} className="h-11 rounded-xl bg-indigo-700 text-white disabled:cursor-not-allowed disabled:opacity-50">
-              {loadingIntent ? "Iniciando pago..." : "Pagar"}
-            </button>
-          </div>
-        </section>
-
-        <section className="rounded-2xl border p-6">
-          <h2 className="mb-3 text-lg font-semibold">Información</h2>
-          <p className="text-sm text-slate-600">Aquí puedes confirmar tu dirección de envío y revisar los artículos del pedido antes de pagar. El formulario de tarjeta se abre en un modal seguro provisto por Stripe.</p>
-        </section>
-      </div>
-
-      <Modal open={open} onClose={() => setOpen(false)} title="Pago seguro">
-        {clientSecret ? (
-          <Elements stripe={stripePromise} options={{ clientSecret }}>
-            <CheckoutForm clientSecret={clientSecret} onClose={() => setOpen(false)} />
-          </Elements>
-        ) : (
-          <div className="p-6 text-center">Cargando...</div>
-        )}
-      </Modal>
-    </div>
-  );
-}
+export default CheckoutPage;
