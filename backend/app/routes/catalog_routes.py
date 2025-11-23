@@ -72,7 +72,7 @@ def list_catalog():
         section=section or None,
     )
 
-    # --- Lógica de imágenes super rápida ---
+    # Logica de imagenes
     items = data["items"]
 
     for it in items:
