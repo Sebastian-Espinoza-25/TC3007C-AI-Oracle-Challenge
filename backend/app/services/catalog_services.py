@@ -29,6 +29,7 @@ def _build_filters(
     in_stock: Optional[bool],
     department: Optional[str],
     index_group: Optional[str],
+    section: Optional[str],
 ) -> Tuple[str, Dict]:
     clauses: List[str] = []
     params: Dict = {}
@@ -66,6 +67,11 @@ def _build_filters(
     if index_group:
         clauses.append("LOWER(index_group_name) = LOWER(:index_group)")
         params["index_group"] = index_group
+        # Section filter
+    if section:
+        clauses.append("LOWER(section_name) = LOWER(:section)")
+        params["section"] = section
+
 
     where_sql = "WHERE " + " AND ".join(clauses) if clauses else ""
     return where_sql, params
@@ -82,6 +88,7 @@ def list_products(
     in_stock: Optional[bool] = None,
     department: Optional[str] = None,
     index_group: Optional[str] = None,
+    section: Optional[str] = None,
     sort: Optional[str] = None,   # "price_asc", "price_desc", "name_asc", "name_desc"
     user_id: Optional[int] = None,
 ) -> Dict:
@@ -94,6 +101,7 @@ def list_products(
         in_stock=in_stock,
         department=department,
         index_group=index_group,
+        section=section,
     )
 
     # Orden natural
@@ -216,6 +224,7 @@ def count_products(
     in_stock: Optional[bool] = None,
     department: Optional[str] = None,
     index_group: Optional[str] = None,
+    section: Optional[str] = None,
 ) -> int:
     where_sql, params = _build_filters(
         q=q,
@@ -225,6 +234,7 @@ def count_products(
         in_stock=in_stock,
         department=department,
         index_group=index_group,
+        section=section,
     )
     sql = f"SELECT COUNT(*) FROM catalog {where_sql}"
     with pool.acquire() as conn, conn.cursor() as cur:

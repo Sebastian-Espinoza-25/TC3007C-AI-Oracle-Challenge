@@ -36,6 +36,7 @@ def list_catalog():
     in_stock = _parse_bool(request.args.get("in_stock"))
     department = request.args.get("department")
     index_group = request.args.get("index_group")
+    section = request.args.get("section")
     sort = request.args.get("sort")  # price_asc|price_desc|name_asc|name_desc
 
     user_id = request.args.get("uid", type=int)
@@ -52,6 +53,7 @@ def list_catalog():
         in_stock=in_stock,
         department=department or None,
         index_group=index_group or None,
+        section=section or None,
         sort=sort or None,
         user_id=user_id,
     )
@@ -64,6 +66,7 @@ def list_catalog():
         in_stock=in_stock,
         department=department or None,
         index_group=index_group or None,
+        section=section or None,
     )
 
     # New: attach image URLs via presigned URLs (PARs)
