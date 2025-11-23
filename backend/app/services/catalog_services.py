@@ -29,16 +29,15 @@ def _build_filters(
     in_stock: Optional[bool],
     department: Optional[str],
     index_group: Optional[str],
+    section: Optional[str],
 ) -> Tuple[str, Dict]:
     clauses: List[str] = []
     params: Dict = {}
 
-    # Search by name
     if q:
         clauses.append("LOWER(prod_name) LIKE '%' || LOWER(:q) || '%'")
         params["q"] = q
 
-    # Product types (IN (:pt0, :pt1, ...))
     if product_types:
         pt_binds = []
         for i, val in enumerate(product_types):
@@ -47,7 +46,6 @@ def _build_filters(
             params[key] = val
         clauses.append(f"product_type_name IN ({', '.join(pt_binds)})")
 
-    # Price range
     if min_price is not None:
         clauses.append("price >= :min_price")
         params["min_price"] = float(min_price)
@@ -55,22 +53,25 @@ def _build_filters(
         clauses.append("price <= :max_price")
         params["max_price"] = float(max_price)
 
-    # Stock > 0
     if in_stock:
         clauses.append("stock > 0")
 
-    # Department / Index group
     if department:
         clauses.append("LOWER(department_name) = LOWER(:department)")
         params["department"] = department
+
     if index_group:
         clauses.append("LOWER(index_group_name) = LOWER(:index_group)")
         params["index_group"] = index_group
 
+    if section:
+        clauses.append("LOWER(section_name) = LOWER(:section)")
+        params["section"] = section
+
     where_sql = "WHERE " + " AND ".join(clauses) if clauses else ""
     return where_sql, params
 
-
+# LIST PRODUCTS
 def list_products(
     pool,
     q: Optional[str],
@@ -82,7 +83,8 @@ def list_products(
     in_stock: Optional[bool] = None,
     department: Optional[str] = None,
     index_group: Optional[str] = None,
-    sort: Optional[str] = None,   # "price_asc", "price_desc", "name_asc", "name_desc"
+    section: Optional[str] = None,
+    sort: Optional[str] = None,
     user_id: Optional[int] = None,
 ) -> Dict:
 
@@ -94,9 +96,9 @@ def list_products(
         in_stock=in_stock,
         department=department,
         index_group=index_group,
+        section=section,
     )
 
-    # Orden natural
     order_by = "ORDER BY prod_name"
     if sort == "price_asc":
         order_by = "ORDER BY price ASC, prod_name"
@@ -105,7 +107,7 @@ def list_products(
     elif sort == "name_desc":
         order_by = "ORDER BY prod_name DESC"
 
-    # Sin personalización
+    # SIN PERSONALIZACIÓN
     if user_id is None:
         sql = f"""
             SELECT
@@ -116,6 +118,7 @@ def list_products(
                 c.stock,
                 c.perceived_colour_master_name,
                 c.section_name,
+                c.image_url,                      -- ✅ AÑADIDO
                 NVL(r.avg_rating, 0)   AS avg_rating,
                 NVL(r.rating_count, 0) AS rating_count
             FROM catalog c
@@ -132,6 +135,7 @@ def list_products(
             {order_by}
             OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
         """
+
         params.update({"limit": limit, "offset": offset})
 
         with pool.acquire() as conn, conn.cursor() as cur:
@@ -139,7 +143,7 @@ def list_products(
             rows = [_dict(cur, r) for r in cur.fetchall()]
         return {"items": rows, "limit": limit, "offset": offset}
 
-    # Con personalización
+    # CON PERSONALIZACIÓN
     params.update({
         "p_uid": int(user_id),
         "limit": limit,
@@ -168,6 +172,7 @@ def list_products(
             p.stock,
             p.perceived_colour_master_name,
             p.section_name,
+            p.image_url,                      -- ✅ AÑADIDO
             NVL(r.avg_rating, 0)   AS avg_rating,
             NVL(r.rating_count, 0) AS rating_count,
             NVL(gender_p.weight,0) * CASE WHEN UPPER(TRIM(p.index_group_name))             = gender_p.key_text THEN :w_gender ELSE 0 END +
@@ -207,6 +212,7 @@ def list_products(
     return {"items": rows, "limit": limit, "offset": offset}
 
 
+# COUNT PRODUCTS
 def count_products(
     pool,
     q: Optional[str],
@@ -216,6 +222,7 @@ def count_products(
     in_stock: Optional[bool] = None,
     department: Optional[str] = None,
     index_group: Optional[str] = None,
+    section: Optional[str] = None,
 ) -> int:
     where_sql, params = _build_filters(
         q=q,
@@ -225,13 +232,15 @@ def count_products(
         in_stock=in_stock,
         department=department,
         index_group=index_group,
+        section=section,
     )
+
     sql = f"SELECT COUNT(*) FROM catalog {where_sql}"
     with pool.acquire() as conn, conn.cursor() as cur:
         cur.execute(sql, params)
         return int(cur.fetchone()[0])
 
-
+# GET DISTINCT PRODUCT TYPES
 def get_distinct_product_types(pool) -> list[dict]:
     sql = """
         SELECT
@@ -247,6 +256,7 @@ def get_distinct_product_types(pool) -> list[dict]:
         return [_dict(cur, r) for r in cur.fetchall()]
 
 
+# GET PRODUCT
 def get_product(pool, external_article_id: str) -> Optional[Dict]:
     sql = """
         SELECT
@@ -258,6 +268,7 @@ def get_product(pool, external_article_id: str) -> Optional[Dict]:
             c.detail_desc,
             c.perceived_colour_master_name,
             c.section_name,
+            c.image_url,                  -- ✅ AÑADIDO
             NVL(r.avg_rating, 0)   AS avg_rating,
             NVL(r.rating_count, 0) AS rating_count
         FROM catalog c
@@ -276,3 +287,17 @@ def get_product(pool, external_article_id: str) -> Optional[Dict]:
         cur.execute(sql, {"external_article_id": external_article_id})
         row = cur.fetchone()
         return _dict(cur, row) if row else None
+
+
+# UPDATE IMAGE URL
+def update_image_url(pool, external_id: str, url: str | None):
+    with pool.acquire() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE catalog
+            SET image_url = :url
+            WHERE external_article_id = :eid
+            """,
+            {"url": url, "eid": external_id}
+        )
+        conn.commit()
