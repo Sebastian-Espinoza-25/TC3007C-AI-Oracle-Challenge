@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import TermsModal from "../components/UI/TermsModal";
 import PrivacyModal from "../components/UI/PrivacyModal";
-import Spinner from "../components/UI/Spinner";
+// import Spinner from "../components/UI/Spinner";
 import CustomButton from "../components/UI/CustomButton"; 
 import { toast } from "react-toastify";
 
@@ -16,7 +16,7 @@ const streetNumberRegex = /^\d+[A-Za-z0-9\-\/]*$/;
 
 const SignUp = () => {
   const navigate = useNavigate();
-  const API_URL = import.meta.env.VITE_API_URL;
+  const API_URL = import.meta.env.VITE_API_URL; // ej: http://127.0.0.1:8080/api
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -100,21 +100,21 @@ const SignUp = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          firstName: formData.firstName.trim(),
-          lastName: formData.lastName.trim(),
-          age: Number(formData.age),
           email: formData.email.trim(),
           password: formData.password,
-          street: formData.street.trim(),
-          streetNumber: formData.streetNumber.trim(),
-          postalCode: formData.postalCode.trim(),
+          name: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
+          age: Number(formData.age),
+          role: "user",
+          notifications: "Y",
+          postal_code: formData.postalCode.trim(),
+          address: `${formData.street.trim()} ${formData.streetNumber.trim()}`,
         }),
       });
 
       if (!response.ok) {
         // Relay backend error details when available so debugging and UX are clearer
-        const data = await response.json();
-        throw new Error(data.error || "Error en el servidor");
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || data.message || "Error en el servidor");
       }
 
       // Give the user immediate feedback and a short delay to read the toast before redirecting
