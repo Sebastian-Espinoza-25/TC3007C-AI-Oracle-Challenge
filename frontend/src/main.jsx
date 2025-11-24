@@ -19,6 +19,8 @@ import Checkout from './pages/Checkout';
 import Logout from './pages/Logout';
 import Atelier from './pages/Atelier';
 import ProductDetail from './pages/ProductDetail';
+import Preferences from './pages/Preferences.jsx';
+
 
 
 const router = createBrowserRouter([
@@ -33,6 +35,7 @@ const router = createBrowserRouter([
       {path: "auth/signup", element: <SignUp/>},
       {path: "auth/logout", element: <Logout/>},
       {path: "auth/login", element: <Login/>},
+      {path: "preferences", element: <Preferences/>},
     ]
   },
   {

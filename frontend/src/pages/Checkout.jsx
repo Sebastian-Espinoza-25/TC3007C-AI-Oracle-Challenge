@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { loadStripe } from "@stripe/stripe-js";
-import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
+//import { loadStripe } from "@stripe/stripe-js";
+//import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import Modal from "../components/UI/Modal";
 import { useAuth } from "../contexts/AuthContext";
 import { useCart } from "../contexts/CartContext";
@@ -9,7 +9,7 @@ import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 
 // Stripe public key must be set in Vite env as VITE_STRIPE_PUBLISHABLE_KEY
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || "");
+//const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || "");
 
 function CheckoutForm({ clientSecret, onClose }) {
   const stripe = useStripe();
