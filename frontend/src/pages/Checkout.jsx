@@ -12,20 +12,29 @@ import {
   useElements,
 } from "@stripe/react-stripe-js";
 
-// Carga la clave pública de Stripe desde .env
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+// ===================== STRIPE INIT =====================
+const pk = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+
+if (!pk) {
+  console.error("❌ VITE_STRIPE_PUBLISHABLE_KEY no está definido.");
+}
+
+const stripePromise = pk ? loadStripe(pk) : null;
 
 const Price = ({ value }) => (
   <span>${Number(value ?? 0).toFixed(2)}</span>
 );
 
-function CheckoutPage() {
+// ===================== MAIN PAGE =====================
+
+function Checkout() {
   const { cart, clearCart } = useCart();
   const { token } = useAuth();
   const navigate = useNavigate();
   const API_URL = import.meta.env.VITE_API_URL;
 
-  const [clientSecret, setClientSecret] = useState(null);
+  // Guardamos un objeto ya NORMALIZADO: { client_secret: string, order_id, payment_method }
+  const [intentData, setIntentData] = useState(null);
   const [loadingIntent, setLoadingIntent] = useState(false);
   const [error, setError] = useState("");
 
@@ -39,18 +48,18 @@ function CheckoutPage() {
     [cart.subtotal, taxes]
   );
 
-  // Si el carrito está vacío, manda al usuario de regreso al carrito
+  const clientSecret = intentData?.client_secret ?? null;
+  const orderId = intentData?.order_id ?? null;
+
   useEffect(() => {
     if (!cart || cart.items.length === 0) {
       navigate("/cart");
     }
   }, [cart, navigate]);
 
-  // Crear PaymentIntent en tu backend: POST /payment/intent
   useEffect(() => {
     if (!cart || cart.items.length === 0) return;
     if (!token) {
-      // Si no hay token, lo ideal es mandarlo a login
       navigate("/login");
       return;
     }
@@ -67,17 +76,66 @@ function CheckoutPage() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            amount: total, // en MXN; tu backend ya multiplica *100
+            amount: total,
           }),
         });
 
         const data = await res.json();
+        console.log("🔎 Respuesta /payments/intent cruda:", data);
 
         if (!res.ok) {
-          throw new Error(data.error || data.message || "No se pudo iniciar el pago.");
+          throw new Error(
+            data.error || data.message || "No se pudo iniciar el pago."
+          );
         }
 
-        setClientSecret(data.client_secret);
+        // ===================== NORMALIZACIÓN =====================
+        // data puede ser:
+        // 1) { client_secret: "pi_..._secret_...", order_id, payment_method }
+        // 2) { client_secret: { client_secret: "pi_..._secret_...", order_id, payment_method } }
+        let normalized = null;
+
+        if (data && data.client_secret) {
+          if (typeof data.client_secret === "string") {
+            // Caso 1: ya viene plano
+            normalized = {
+              client_secret: data.client_secret,
+              order_id: data.order_id ?? null,
+              payment_method: data.payment_method ?? null,
+            };
+          } else if (typeof data.client_secret === "object") {
+            // Caso 2: viene anidado
+            const inner = data.client_secret;
+            normalized = {
+              client_secret:
+                inner.client_secret ?? inner.clientSecret ?? null,
+              order_id:
+                inner.order_id ??
+                inner.orderId ??
+                data.order_id ??
+                null,
+              payment_method:
+                inner.payment_method ??
+                inner.paymentMethod ??
+                data.payment_method ??
+                null,
+            };
+          }
+        }
+
+        console.log("✅ IntentData normalizado:", normalized);
+
+        if (
+          !normalized ||
+          typeof normalized.client_secret !== "string" ||
+          !normalized.client_secret.startsWith("pi_")
+        ) {
+          throw new Error(
+            "La API no devolvió un client_secret válido para Stripe."
+          );
+        }
+
+        setIntentData(normalized);
       } catch (err) {
         console.error(err);
         setError(err.message || "Ocurrió un error al crear el pago.");
@@ -87,7 +145,7 @@ function CheckoutPage() {
     };
 
     createPaymentIntent();
-  }, [API_URL, cart, total, token, navigate]);
+  }, [API_URL, cart, token, total, navigate]);
 
   if (!cart || cart.items.length === 0) {
     return (
@@ -112,7 +170,7 @@ function CheckoutPage() {
       </header>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr),minmax(0,1.2fr)]">
-        {/* Columna izquierda: formulario de pago */}
+        {/* Columna izquierda: pago */}
         <section className="rounded-2xl bg-white p-6 shadow-lg">
           <h2 className="mb-4 text-lg font-semibold">Datos de pago</h2>
 
@@ -133,22 +191,26 @@ function CheckoutPage() {
             </div>
           )}
 
-          {clientSecret && (
-            <Elements
-              stripe={stripePromise}
-              options={{
-                clientSecret,
-                appearance: { theme: "stripe" },
-              }}
-            >
-              <CardCheckoutForm
-                total={total}
-                clientSecret={clientSecret}
-                clearCart={clearCart}
-                onSuccess={() => navigate("/")} // O "/checkout/success"
-              />
-            </Elements>
-          )}
+          {/* Solo montamos Elements si tenemos clientSecret string */}
+          {clientSecret &&
+            typeof clientSecret === "string" &&
+            stripePromise && (
+              <Elements
+                stripe={stripePromise}
+                options={{
+                  clientSecret: clientSecret,
+                  appearance: { theme: "stripe" },
+                }}
+              >
+                <CardCheckoutForm
+                  total={total}
+                  clientSecret={clientSecret}
+                  clearCart={clearCart}
+                  onSuccess={() => navigate("/")}
+                  orderId={orderId}
+                />
+              </Elements>
+            )}
 
           {!clientSecret && !loadingIntent && !error && (
             <p className="text-sm text-slate-500">
@@ -157,7 +219,7 @@ function CheckoutPage() {
           )}
         </section>
 
-        {/* Columna derecha: resumen del pedido */}
+        {/* Columna derecha: resumen */}
         <aside className="rounded-2xl bg-white p-6 shadow-lg">
           <h2 className="mb-4 text-lg font-semibold">Resumen del pedido</h2>
 
@@ -212,7 +274,9 @@ function CheckoutPage() {
   );
 }
 
-function CardCheckoutForm({ total, clientSecret, clearCart, onSuccess }) {
+// ===================== CARD FORM =====================
+
+function CardCheckoutForm({ total, clientSecret, clearCart, onSuccess, orderId }) {
   const stripe = useStripe();
   const elements = useElements();
 
@@ -220,6 +284,8 @@ function CardCheckoutForm({ total, clientSecret, clearCart, onSuccess }) {
   const [billingEmail, setBillingEmail] = useState("");
   const [processing, setProcessing] = useState(false);
   const [cardError, setCardError] = useState("");
+
+  const stripeNotReady = !stripe || !elements;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -252,7 +318,6 @@ function CardCheckoutForm({ total, clientSecret, clearCart, onSuccess }) {
       }
 
       if (paymentIntent && paymentIntent.status === "succeeded") {
-        // El webhook /payment/webhook se encargará de actualizar la BD y crear la invoice
         await clearCart();
         onSuccess?.();
       } else {
@@ -268,7 +333,7 @@ function CardCheckoutForm({ total, clientSecret, clearCart, onSuccess }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Datos de facturación básicos */}
+      {/* Datos de facturación */}
       <div className="grid gap-3 md:grid-cols-2">
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-slate-700">
@@ -296,19 +361,21 @@ function CardCheckoutForm({ total, clientSecret, clearCart, onSuccess }) {
         </div>
       </div>
 
-      {/* CardElement de Stripe */}
+      {/* CardElement */}
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium text-slate-700">
           Datos de la tarjeta
         </label>
-        <div className="rounded-xl border px-3 py-3">
+        <div className="rounded-xl border px-3 py-3 bg-white">
           <CardElement
             options={{
+              hidePostalCode: true,
               style: {
                 base: {
                   fontSize: "16px",
+                  color: "#0f172a",
                   "::placeholder": {
-                    color: "#94a3b8",
+                    color: "#9ca3af",
                   },
                 },
                 invalid: {
@@ -316,11 +383,24 @@ function CardCheckoutForm({ total, clientSecret, clearCart, onSuccess }) {
                 },
               },
             }}
+            onReady={(el) => {
+              console.log("✅ Stripe CardElement READY", el);
+            }}
+            onChange={(event) => {
+              console.log("CardElement change:", event);
+              if (event.error) {
+                setCardError(event.error.message);
+              } else {
+                setCardError("");
+              }
+            }}
           />
         </div>
-        <p className="text-xs text-slate-400">
-          Se aceptan tarjetas de crédito y débito.
-        </p>
+        {stripeNotReady && (
+          <p className="text-xs text-amber-600 mt-1">
+            Stripe todavía no está listo (stripe o elements es null).
+          </p>
+        )}
       </div>
 
       {cardError && (
@@ -331,7 +411,7 @@ function CardCheckoutForm({ total, clientSecret, clearCart, onSuccess }) {
 
       <button
         type="submit"
-        disabled={!stripe || processing}
+        disabled={stripeNotReady || processing}
         className="mt-2 flex h-11 w-full items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
       >
         {processing ? (
@@ -348,4 +428,4 @@ function CardCheckoutForm({ total, clientSecret, clearCart, onSuccess }) {
   );
 }
 
-export default CheckoutPage;
+export default Checkout;
