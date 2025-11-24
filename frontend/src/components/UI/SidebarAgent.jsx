@@ -158,23 +158,28 @@ const SidebarAgent = ({ isOpen, onClose, product, clearProduct }) => {
                         className={`text-gray-500 p-6 rounded-xl border-4 border-dashed w-11/12 max-w-sm transition-all duration-300 ${dropZoneStyles}`}
                     >
                         {product ? (
-                            <div className="text-left">
+                            <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-4 border border-gray-200">
                                 <img
                                     src={product.image}
                                     alt={product.name}
-                                    className="w-full h-48 object-cover rounded-lg mb-4"
+                                    className="w-full h-48 object-cover rounded-xl mb-4 shadow-sm"
                                 />
-                                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+
+                                <h2 className="text-xl font-bold text-gray-900 leading-tight mb-1">
                                     {product.name}
                                 </h2>
-                                <p className="text-lg font-semibold text-violet-700 mb-1">
+
+                                <p className="text-lg font-semibold text-violet-700 mb-2">
                                     ${Number(product.price).toFixed(2)}
                                 </p>
-                                <p className="text-sm text-gray-600 mb-3">
-                                    {product.stock > 0
-                                        ? `Disponibles: ${product.stock}`
-                                        : 'Sin stock'}
-                                </p>
+
+                                <div className="flex items-center justify-between mt-3">
+                                    <span className={`text-sm font-medium ${
+                                        product.stock > 0 ? "text-green-600" : "text-red-600"
+                                    }`}>
+                                        {product.stock > 0 ? `Disponibles: ${product.stock}` : "Sin stock"}
+                                    </span>
+                                </div>
                             </div>
                         ) : (
                             <>
