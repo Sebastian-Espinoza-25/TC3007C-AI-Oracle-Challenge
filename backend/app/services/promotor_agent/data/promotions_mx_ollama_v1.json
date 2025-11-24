@@ -637,6 +637,91 @@
         "tipo": "descuento_porcentaje",
         "valor": 12
       }
+    },
+        {
+      "id": "GEN-3PCT-400",
+      "titulo": "3% en tu compra desde $400",
+      "descripcion_cliente": "Aprovecha 3% de descuento en tu compra desde $400, sin importar tu banco.",
+      "vigencia_inicio": "2025-10-01T00:00:00Z",
+      "vigencia_fin": "2025-12-31T23:59:59Z",
+      "prioridad": 6,
+      "condiciones": {
+        "minimo_carrito_mxn": 400,
+        "metodos_pago": ["card_credit", "card_debit"],
+        "bancos": ["EMPTY"]
+      },
+      "beneficio": {
+        "tipo": "descuento_porcentaje",
+        "valor": 3
+      }
+    },
+    {
+      "id": "GEN-5PCT-800",
+      "titulo": "5% en tu compra desde $800",
+      "descripcion_cliente": "Obtén 5% de descuento en compras desde $800, sin necesidad de compartir tu banco.",
+      "vigencia_inicio": "2025-10-01T00:00:00Z",
+      "vigencia_fin": "2025-12-31T23:59:59Z",
+      "prioridad": 8,
+      "condiciones": {
+        "minimo_carrito_mxn": 800,
+        "metodos_pago": ["card_credit", "card_debit"],
+        "bancos": ["EMPTY"]
+      },
+      "beneficio": {
+        "tipo": "descuento_porcentaje",
+        "valor": 5
+      }
+    },
+    {
+      "id": "GEN-7PCT-1200",
+      "titulo": "7% en tu compra desde $1,200",
+      "descripcion_cliente": "Si tu compra es de $1,200 o más, recibe 7% de descuento sin importar el banco de tu tarjeta.",
+      "vigencia_inicio": "2025-10-01T00:00:00Z",
+      "vigencia_fin": "2025-12-31T23:59:59Z",
+      "prioridad": 10,
+      "condiciones": {
+        "minimo_carrito_mxn": 1200,
+        "metodos_pago": ["card_credit", "card_debit"],
+        "bancos": ["EMPTY"]
+      },
+      "beneficio": {
+        "tipo": "descuento_porcentaje",
+        "valor": 7
+      }
+    },
+    {
+      "id": "GEN-3MSI-1800",
+      "titulo": "3 MSI desde $1,800",
+      "descripcion_cliente": "Difiere tu compra a 3 meses sin intereses desde $1,800, sin necesidad de indicar tu banco.",
+      "vigencia_inicio": "2025-10-01T00:00:00Z",
+      "vigencia_fin": "2026-01-15T23:59:59Z",
+      "prioridad": 12,
+      "condiciones": {
+        "minimo_carrito_mxn": 1800,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["EMPTY"]
+      },
+      "beneficio": {
+        "tipo": "msi",
+        "meses": 3
+      }
+    },
+    {
+      "id": "GEN-10PCT-2500",
+      "titulo": "10% en tu compra desde $2,500",
+      "descripcion_cliente": "Llévate 10% de descuento en compras desde $2,500 sin compartir los datos de tu banco.",
+      "vigencia_inicio": "2025-10-01T00:00:00Z",
+      "vigencia_fin": "2025-12-31T23:59:59Z",
+      "prioridad": 14,
+      "condiciones": {
+        "minimo_carrito_mxn": 2500,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["EMPTY"]
+      },
+      "beneficio": {
+        "tipo": "descuento_porcentaje",
+        "valor": 10
+      }
     }
   ]
 }

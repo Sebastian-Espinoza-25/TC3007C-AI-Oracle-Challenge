@@ -11,6 +11,8 @@ from .routes.catalog_routes import catalog_bp
 from .routes.cart_routes import cart_bp
 from .routes.payments_routes import payments_bp
 from .routes.preferences_routes import preferences_bp
+from .routes.rating_routes import ratings_bp
+from .routes.promotor_agent_routes import promotor_bp
 from .services.db.connection import create_pool
 
 def create_app():
@@ -45,6 +47,8 @@ def create_app():
    app.register_blueprint(cart_bp, url_prefix="/api/cart")
    app.register_blueprint(payments_bp, url_prefix="/api/payments")
    app.register_blueprint(preferences_bp, url_prefix="/api/preferences")
+   app.register_blueprint(ratings_bp, url_prefix="/api/ratings")
+   app.register_blueprint(promotor_bp, url_prefix="/api/promos")
 
 
    # Base route
@@ -74,12 +78,14 @@ def create_app():
                    "remove_item": "DELETE /api/cart/items/<external_article_id>",
                    "clear_cart": "DELETE /api/cart/"
                },
-               "payments": {
-                   "create_payment": "POST /api/payments/create",
-                   "add_method": "POST /api/payments/method",
-                   "list_methods": "GET /api/payments/methods/<client_id>",
-                   "get_invoices": "GET /api/payments/invoices/<client_id>"
-               }
+              "payments": {
+                    "create_intent": "POST /api/payments/intent",
+                    "webhook": "POST /api/payments/webhook",
+                    "list_methods": "GET /api/payments/methods",
+                    "add_method": "POST /api/payments/methods",
+                    "get_invoices": "GET /api/payments/invoices"
+                    }
+
            }
        }, 200
 

@@ -1,27 +1,57 @@
 -- =====================================================================
 -- E-COMMERCE SCHEMA (Oracle 26ai) 
--- =====================================================================:
+-- =====================================================================
 -- 0) CLEANUP (DROP IF EXISTS)
 -- =====================================================================
-BEGIN EXECUTE IMMEDIATE 'DROP TRIGGER trg_payments_upd_ts'; EXCEPTION WHEN OTHERS THEN NULL; END;
+
+BEGIN EXECUTE IMMEDIATE 'DROP TRIGGER trg_payments_upd_ts'; 
+EXCEPTION WHEN OTHERS THEN NULL; 
+END;
 /
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE payments CASCADE CONSTRAINTS'; EXCEPTION WHEN OTHERS THEN NULL; END;
+BEGIN EXECUTE IMMEDIATE 'DROP TRIGGER trg_product_ratings_upd_ts'; 
+EXCEPTION WHEN OTHERS THEN NULL; 
+END;
 /
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE invoices CASCADE CONSTRAINTS'; EXCEPTION WHEN OTHERS THEN NULL; END;
+
+BEGIN EXECUTE IMMEDIATE 'DROP TABLE product_ratings CASCADE CONSTRAINTS'; 
+EXCEPTION WHEN OTHERS THEN NULL; 
+END;
 /
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE payment_methods CASCADE CONSTRAINTS'; EXCEPTION WHEN OTHERS THEN NULL; END;
+BEGIN EXECUTE IMMEDIATE 'DROP TABLE payments CASCADE CONSTRAINTS'; 
+EXCEPTION WHEN OTHERS THEN NULL; 
+END;
 /
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE order_items CASCADE CONSTRAINTS'; EXCEPTION WHEN OTHERS THEN NULL; END;
+BEGIN EXECUTE IMMEDIATE 'DROP TABLE invoices CASCADE CONSTRAINTS'; 
+EXCEPTION WHEN OTHERS THEN NULL; 
+END;
 /
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE orders CASCADE CONSTRAINTS'; EXCEPTION WHEN OTHERS THEN NULL; END;
+BEGIN EXECUTE IMMEDIATE 'DROP TABLE payment_methods CASCADE CONSTRAINTS'; 
+EXCEPTION WHEN OTHERS THEN NULL; 
+END;
 /
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE cart_items CASCADE CONSTRAINTS'; EXCEPTION WHEN OTHERS THEN NULL; END;
+BEGIN EXECUTE IMMEDIATE 'DROP TABLE order_items CASCADE CONSTRAINTS'; 
+EXCEPTION WHEN OTHERS THEN NULL; 
+END;
 /
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE carts CASCADE CONSTRAINTS'; EXCEPTION WHEN OTHERS THEN NULL; END;
+BEGIN EXECUTE IMMEDIATE 'DROP TABLE orders CASCADE CONSTRAINTS'; 
+EXCEPTION WHEN OTHERS THEN NULL; 
+END;
 /
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE catalog CASCADE CONSTRAINTS'; EXCEPTION WHEN OTHERS THEN NULL; END;
+BEGIN EXECUTE IMMEDIATE 'DROP TABLE cart_items CASCADE CONSTRAINTS'; 
+EXCEPTION WHEN OTHERS THEN NULL; 
+END;
 /
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE app_user CASCADE CONSTRAINTS'; EXCEPTION WHEN OTHERS THEN NULL; END;
+BEGIN EXECUTE IMMEDIATE 'DROP TABLE carts CASCADE CONSTRAINTS'; 
+EXCEPTION WHEN OTHERS THEN NULL; 
+END;
+/
+BEGIN EXECUTE IMMEDIATE 'DROP TABLE catalog CASCADE CONSTRAINTS'; 
+EXCEPTION WHEN OTHERS THEN NULL; 
+END;
+/
+BEGIN EXECUTE IMMEDIATE 'DROP TABLE app_user CASCADE CONSTRAINTS'; 
+EXCEPTION WHEN OTHERS THEN NULL; 
+END;
 /
 
 -- =====================================================================
@@ -80,8 +110,42 @@ CREATE TABLE catalog (
   CONSTRAINT ck_catalog_stock_nonneg CHECK (stock  >= 0)
 );
 
-CREATE INDEX ix_catalog_prod_name   ON catalog (prod_name);
+CREATE INDEX ix_catalog_prod_name    ON catalog (prod_name);
 CREATE INDEX ix_catalog_product_code ON catalog (product_code);
+
+-- =====================================================================
+-- 2.5) PRODUCT_RATINGS
+-- =====================================================================
+CREATE TABLE product_ratings (
+  rating_id    NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id      NUMBER            NOT NULL,          -- FK a app_user
+  article_id   VARCHAR2(30 CHAR) NOT NULL,          -- external_article_id (catalog)
+  rating       NUMBER(1)         NOT NULL,          -- 1..5
+  review_text  CLOB,
+  created_at   TIMESTAMP WITH TIME ZONE
+               DEFAULT SYSTIMESTAMP NOT NULL,
+  updated_at   TIMESTAMP WITH TIME ZONE,
+
+  CONSTRAINT fk_pr_user
+    FOREIGN KEY (user_id) REFERENCES app_user(user_id)
+    ON DELETE CASCADE,
+
+  CONSTRAINT fk_pr_article
+    FOREIGN KEY (article_id) REFERENCES catalog(external_article_id)
+    ON DELETE CASCADE,
+
+  CONSTRAINT ck_pr_rating
+    CHECK (rating BETWEEN 1 AND 5),
+
+  -- Un rating por usuario y artículo
+  CONSTRAINT uq_pr_user_article
+    UNIQUE (user_id, article_id)
+);
+
+-- Índices útiles
+CREATE INDEX ix_pr_article ON product_ratings (article_id);
+CREATE INDEX ix_pr_user    ON product_ratings (user_id);
+CREATE INDEX ix_pr_rating  ON product_ratings (rating);
 
 -- =====================================================================
 -- 3) CARTS
@@ -135,7 +199,7 @@ CREATE TABLE order_items (
     ON DELETE CASCADE,
   CONSTRAINT fk_order_items_article
     FOREIGN KEY (article_id) REFERENCES catalog(external_article_id),
-  CONSTRAINT ck_order_items_qty_pos   CHECK (quantity > 0),
+  CONSTRAINT ck_order_items_qty_pos      CHECK (quantity > 0),
   CONSTRAINT ck_order_items_price_nonneg CHECK (price >= 0)
 );
 
@@ -156,7 +220,7 @@ CREATE TABLE cart_items (
     ON DELETE CASCADE,
   CONSTRAINT fk_cart_items_article
     FOREIGN KEY (article_id) REFERENCES catalog(external_article_id),
-  CONSTRAINT ck_cart_items_qty_pos     CHECK (quantity > 0),
+  CONSTRAINT ck_cart_items_qty_pos      CHECK (quantity > 0),
   CONSTRAINT ck_cart_items_price_nonneg CHECK (price >= 0),
   CONSTRAINT uq_cart_items_cart_article UNIQUE (cart_id, article_id)
 );
@@ -170,13 +234,13 @@ CREATE INDEX ix_cart_items_article ON cart_items (article_id);
 CREATE TABLE payment_methods (
   payment_method_id   NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   user_id             NUMBER NOT NULL,                           -- FK a app_user
-  stripe_customer_id  VARCHAR2(100 CHAR),                         -- ID cliente Stripe
-  payment_method_ref  VARCHAR2(100 CHAR) UNIQUE,                  -- pm_xxx (u otro ref)
-  brand               VARCHAR2(50  CHAR),                         -- Visa, MasterCard...
-  last4               VARCHAR2(10  CHAR),                         -- Últimos 4 dígitos
+  stripe_customer_id  VARCHAR2(100 CHAR),                        -- ID cliente Stripe
+  payment_method_ref  VARCHAR2(100 CHAR) UNIQUE,                 -- pm_xxx (u otro ref)
+  brand               VARCHAR2(50  CHAR),                        -- Visa, MasterCard...
+  last4               VARCHAR2(10  CHAR),                        -- Últimos 4 dígitos
   exp_month           NUMBER(2),
   exp_year            NUMBER(4),
-  type                VARCHAR2(30  CHAR),                         -- card, PayPal, etc.
+  type                VARCHAR2(30  CHAR),                        -- card, PayPal, etc.
   created_at          TIMESTAMP WITH TIME ZONE DEFAULT SYSTIMESTAMP NOT NULL,
   CONSTRAINT fk_pm_user
     FOREIGN KEY (user_id) REFERENCES app_user(user_id)
@@ -201,17 +265,13 @@ CREATE TABLE invoices (
 
   CONSTRAINT fk_invoice_user
     FOREIGN KEY (user_id)  REFERENCES orders.user_id  
-    DISABLE,                                          
+    DISABLE,
 
   -- NOTA: Lo correcto es FK a app_user, no a orders.user_id (que no es PK).
   -- Usamos el FK correcto abajo:
   CONSTRAINT fk_invoice_user2
     FOREIGN KEY (user_id) REFERENCES app_user(user_id)
     ON DELETE CASCADE,
-
-  CONSTRAINT fk_invoice_order
-    FOREIGN KEY (order_id) REFERENCES orders(order_id)
-    ON DELETE SET NULL,
 
   CONSTRAINT ck_invoice_amount_nonneg CHECK (amount >= 0),
   CONSTRAINT ck_invoice_status CHECK (status IN ('PENDING','PAID','FAILED'))
@@ -274,9 +334,21 @@ CREATE INDEX ix_pay_method     ON payments (payment_method_id);
 CREATE INDEX ix_pay_order      ON payments (order_id);
 -- CREATE INDEX ix_pay_created_at ON payments (created_at); -- opcional para reportes
 
--- Trigger para mantener updated_at
+-- =====================================================================
+-- TRIGGERS
+-- =====================================================================
+
+-- Trigger para mantener updated_at en payments
 CREATE OR REPLACE TRIGGER trg_payments_upd_ts
 BEFORE UPDATE ON payments
+FOR EACH ROW
+BEGIN
+  :NEW.updated_at := SYSTIMESTAMP;
+END;
+/
+-- Trigger para mantener updated_at en product_ratings
+CREATE OR REPLACE TRIGGER trg_product_ratings_upd_ts
+BEFORE UPDATE ON product_ratings
 FOR EACH ROW
 BEGIN
   :NEW.updated_at := SYSTIMESTAMP;

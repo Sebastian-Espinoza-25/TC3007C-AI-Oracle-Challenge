@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import CustomButton from '../components/UI/CustomButton';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
