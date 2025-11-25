@@ -31,7 +31,11 @@ const Login = () => {
       });
 
       setTimeout(() => {
-        window.location.href = '/';
+        if(data.user.first_time === 'Y'){
+          window.location.href = '/preferences';
+        } else {
+          window.location.href = '/';
+        }
       }, 3000);
 
     } catch (error) {
