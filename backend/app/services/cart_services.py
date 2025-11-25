@@ -60,17 +60,25 @@ def _get_or_create_open_cart(conn, user_id: int) -> int:
 
 # Recalculate cart total
 def _recalc_cart_total(conn, cart_id: int):
-    """Recalculates the total price of the cart"""
+    """
+    Recalculates the total price of the cart y limpia la promo aplicada.
+    Cada vez que cambian los items, se invalida la promoción anterior.
+    """
     with conn.cursor() as cur:
-        cur.execute("""
+        cur.execute(
+            """
             UPDATE carts c
                SET total_price = (
                    SELECT NVL(SUM(ci.quantity * ci.price), 0)
                    FROM cart_items ci
                    WHERE ci.cart_id = c.cart_id
-               )
+               ),
+                   promo_applied = 'N'
              WHERE c.cart_id = :1
-        """, [cart_id])
+            """,
+            [cart_id],
+        )
+
 
 # Get price and stock of an article
 def _get_price_and_stock(conn, article_id: str) -> Optional[Dict]:

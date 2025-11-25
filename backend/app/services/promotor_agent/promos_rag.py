@@ -465,8 +465,14 @@ def build_messages(
                 "promo_title": "Sin promoción",
                 "message": "No hay promociones vigentes para tu tarjeta en este momento.",
                 "meets_minimum": False,
+                "benefit": None,  # sin beneficio
             },
-            "next_promo": {"promo_title": "", "required_amount": 0, "message": ""},
+            "next_promo": {
+                "promo_title": "",
+                "required_amount": 0,
+                "message": "",
+                "benefit": None,
+            },
             "mix_message": {
                 "message": "Por ahora no contamos con promociones activas para tu tarjeta."
             },
@@ -474,6 +480,26 @@ def build_messages(
 
     # etiqueta amigable para el mensaje (oculta EMPTY)
     bank_label = _bank_label_for_message(banco)
+
+    # ======================
+    # Beneficio de la promo actual (best)
+    # ======================
+    benefit_current: Optional[Dict[str, Any]] = None
+    if best:
+        ben = best.get("beneficio", {}) or {}
+        tipo = ben.get("tipo")
+        benefit_current = {"type": tipo}
+
+        if tipo == "descuento_porcentaje":
+            try:
+                benefit_current["percentage"] = float(ben.get("valor", 0) or 0)
+            except (TypeError, ValueError):
+                benefit_current["percentage"] = 0.0
+        elif tipo == "msi":
+            try:
+                benefit_current["months"] = int(ben.get("meses", 0) or 0)
+            except (TypeError, ValueError):
+                benefit_current["months"] = 0
 
     # current
     if best:
@@ -506,13 +532,35 @@ def build_messages(
             "promo_title": best.get("titulo", "Promoción"),
             "message": msg_current,
             "meets_minimum": bool(meets),
+            # 👇 info estructurada del beneficio
+            "benefit": benefit_current,
         }
     else:
         current = {
             "promo_title": "Sin promoción",
             "message": "No hay promociones vigentes para tu tarjeta en este momento.",
             "meets_minimum": False,
+            "benefit": None,
         }
+
+    # ======================
+    # Beneficio de la siguiente promo (next_up)
+    # ======================
+    benefit_next: Optional[Dict[str, Any]] = None
+    if next_up:
+        ben_next = next_up.get("beneficio", {}) or {}
+        tipo_next = ben_next.get("tipo")
+        benefit_next = {"type": tipo_next}
+        if tipo_next == "descuento_porcentaje":
+            try:
+                benefit_next["percentage"] = float(ben_next.get("valor", 0) or 0)
+            except (TypeError, ValueError):
+                benefit_next["percentage"] = 0.0
+        elif tipo_next == "msi":
+            try:
+                benefit_next["months"] = int(ben_next.get("meses", 0) or 0)
+            except (TypeError, ValueError):
+                benefit_next["months"] = 0
 
     # next
     if next_up:
@@ -536,12 +584,15 @@ def build_messages(
                 f"Te faltan ${int(falt)} para alcanzar {benefit_str}. "
                 f"Agrega algo más para aplicar."
             ),
+            # 👇 info estructurada del beneficio de la siguiente promo
+            "benefit": benefit_next,
         }
     else:
         next_block = {
             "promo_title": "",
             "required_amount": 0,
             "message": "",
+            "benefit": None,
         }
 
     mix = {
