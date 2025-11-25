@@ -4,3 +4,14 @@
 
 # OS
 .DS_Store
+
+**/*.pkl
+
+
+
+**/*.png
+
+
+**/*.jpg
+
+**/*.JPG
