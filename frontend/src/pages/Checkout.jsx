@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useCart } from "../contexts/CartContext";
 import { useAuth } from "../contexts/AuthContext";
 import Spinner from "../components/UI/Spinner";
@@ -36,7 +36,11 @@ function Checkout() {
   const { cart, clearCart } = useCart();
   const { token } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const API_URL = import.meta.env.VITE_API_URL;
+
+  // Datos de promo / total que vienen desde el carrito (navigate("/checkout", { state: { totalWithPromo, appliedPromo } }))
+  const { totalWithPromo, appliedPromo } = location.state || {};
 
   // Keeping intent-related info in one normalized object simplifies what we pass to <Elements> and the form
   const [intentData, setIntentData] = useState(null);
@@ -45,17 +49,33 @@ function Checkout() {
 
   const shipping = 0;
 
-  // Using useMemo here to avoid recalculating taxes on every render when cart.subtotal has not changed
-  const taxes = useMemo(
-    () => Math.round(cart.subtotal * 0.09 * 100) / 100,
-    [cart.subtotal]
+  // Subtotal base: siempre el del carrito
+  const subtotalBase = cart?.subtotal ?? 0;
+
+  // Descuento aplicado: si viene de appliedPromo, lo usamos; si no, 0
+  const promoDiscount = appliedPromo?.discount_amount ?? 0;
+
+  // Subtotal después de promoción
+  const subtotalAfterPromo = useMemo(
+    () => Math.max(0, subtotalBase - promoDiscount),
+    [subtotalBase, promoDiscount]
   );
 
-  // Same logic for total; depends only on subtotal and taxes
-  const total = useMemo(
-    () => cart.subtotal + shipping + taxes,
-    [cart.subtotal, taxes]
+  // Impuestos calculados sobre el subtotal con promo
+  const taxes = useMemo(
+    () => Math.round(subtotalAfterPromo * 0.09 * 100) / 100,
+    [subtotalAfterPromo]
   );
+
+  // Total calculado en frontend (con promo + impuestos)
+  const computedTotal = useMemo(
+    () => subtotalAfterPromo + shipping + taxes,
+    [subtotalAfterPromo, taxes]
+  );
+
+  // Si el carrito nos mandó un total con promo ya calculado, lo usamos para mostrar;
+  // si no, usamos el total calculado aquí.
+  const total = typeof totalWithPromo === "number" ? totalWithPromo : computedTotal;
 
   const clientSecret = intentData?.client_secret ?? null;
   const orderId = intentData?.order_id ?? null;
@@ -82,16 +102,13 @@ function Checkout() {
       setError("");
 
       try {
+        // El backend AHORA ignora el amount del frontend y toma el total desde DB (carrito + promo aplicada),
+        // por eso no enviamos body aquí.
         const res = await fetch(`${API_URL}/payments/intent`, {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            // Sending the computed total so backend and frontend stay in sync
-            amount: total,
-          }),
         });
 
         const data = await res.json();
@@ -104,22 +121,21 @@ function Checkout() {
         }
 
         // Normalizing the intent data received from the backend
-        // Normalizing here allows the rest of the UI to assume a simple flat shape
-        // data can be:
+        // data puede ser:
         // 1) { client_secret: "pi_..._secret_...", order_id, payment_method }
         // 2) { client_secret: { client_secret: "pi_..._secret_...", order_id, payment_method } }
         let normalized = null;
 
         if (data && data.client_secret) {
           if (typeof data.client_secret === "string") {
-            // Handling the flat case where the backend already returns a direct client_secret string
+            // Caso plano
             normalized = {
               client_secret: data.client_secret,
               order_id: data.order_id ?? null,
               payment_method: data.payment_method ?? null,
             };
           } else if (typeof data.client_secret === "object") {
-            // Handling the nested case where the backend wraps the client_secret and metadata in an inner object
+            // Caso anidado
             const inner = data.client_secret;
             normalized = {
               client_secret:
@@ -161,7 +177,7 @@ function Checkout() {
     };
 
     createPaymentIntent();
-  }, [API_URL, cart, token, total, navigate]);
+  }, [API_URL, cart, token, navigate]);
 
   // Simple fallback UI for the case where the user somehow bypassed the initial guard
   if (!cart || cart.items.length === 0) {
@@ -266,9 +282,19 @@ function Checkout() {
             <div className="flex justify-between">
               <span>Subtotal</span>
               <span className="font-medium">
-                <Price value={cart.subtotal} />
+                <Price value={subtotalBase} />
               </span>
             </div>
+
+            {promoDiscount > 0 && (
+              <div className="flex justify-between text-emerald-700">
+                <span>Descuento promo</span>
+                <span className="font-medium">
+                  -<Price value={promoDiscount} />
+                </span>
+              </div>
+            )}
+
             <div className="flex justify-between">
               <span>Envío</span>
               <span className="font-medium">Gratis</span>
