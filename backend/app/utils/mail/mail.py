@@ -53,7 +53,7 @@ def send_payment_confirmation_from_db(pool, provider_ref: str):
        # Fetch payment info with user email
        cursor.execute("""
            SELECT u.email, u.name, p.amount, p.currency, p.provider, p.created_at
-             FROM payments p
+             FROM paymentss p
              JOIN app_user u ON p.user_id = u.user_id
             WHERE p.provider_ref = :1
               AND p.status = 'SUCCEEDED'
