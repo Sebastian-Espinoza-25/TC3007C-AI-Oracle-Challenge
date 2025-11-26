@@ -624,12 +624,12 @@ class ClusterRecommender:
 
         # ---- pesos por campo ----
         default_fw = {
-                "description": 5.0,
+                "description": 15.0,
                 "product_type_name": 2.0,
                 "product_group_name": 1.0,
                 "graphical_appearance_name": 1.0,
-                "colour_group_name": 2.0,
-                "index_group_name": 100.0,
+                "colour_group_name": 0.95,
+                "index_group_name": 10.0,
         }
         if field_weights:
             default_fw.update(field_weights)
@@ -757,12 +757,12 @@ class ClusterRecommender:
             key_map = key_map or {}
 
             default_fw = {
-                "description": 5.0,
+                "description": 15.0,
                 "product_type_name": 2.0,
                 "product_group_name": 1.0,
                 "graphical_appearance_name": 1.0,
-                "colour_group_name": 2.0,
-                "index_group_name": 100.0,
+                "colour_group_name": 0.95,
+                "index_group_name": 10.0,
             }
             if field_weights:
                 default_fw.update(field_weights)
