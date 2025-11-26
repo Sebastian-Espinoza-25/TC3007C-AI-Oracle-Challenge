@@ -52,17 +52,17 @@ def send_payment_confirmation_from_db(pool, provider_ref: str):
 
        # Fetch payment info with user email
        cursor.execute("""
-           SELECT u.email, u.name, p.amount, p.currency, p.provider, p.created_at
+           SELECT u.email, u.name, p.amount, p.currency, p.payment_provider, p.created_at
              FROM paymentss p
              JOIN app_user u ON p.user_id = u.user_id
-            WHERE p.provider_ref = :1
+            WHERE p.payment_intent_id = :1
               AND p.status = 'SUCCEEDED'
        """, [provider_ref])
 
 
        row = cursor.fetchone()
        if not row:
-           print(f"⚠️ No successful payment found for provider_ref={provider_ref}")
+           print(f"⚠️ No successful payment found for payment_intent_id={provider_ref}")
            return
 
 
