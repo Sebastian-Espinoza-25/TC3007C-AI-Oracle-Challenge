@@ -13,6 +13,7 @@ from .routes.payments_routes import payments_bp
 from .routes.preferences_routes import preferences_bp
 from .routes.rating_routes import ratings_bp
 from .routes.promotor_agent_routes import promotor_bp
+from .routes.ideator_agent_routes import ideator_agent_bp
 from .services.db.connection import create_pool
 
 def create_app():
@@ -49,6 +50,7 @@ def create_app():
    app.register_blueprint(preferences_bp, url_prefix="/api/preferences")
    app.register_blueprint(ratings_bp, url_prefix="/api/ratings")
    app.register_blueprint(promotor_bp, url_prefix="/api/promos")
+   app.register_blueprint(ideator_agent_bp, url_prefix="/api/ideator")
 
 
    # Base route
