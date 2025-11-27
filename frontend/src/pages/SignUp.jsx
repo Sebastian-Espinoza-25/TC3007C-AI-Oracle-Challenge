@@ -118,7 +118,7 @@ const SignUp = () => {
       }
 
       // Give the user immediate feedback and a short delay to read the toast before redirecting
-      toast.success("Cuenta creada exitosamente 🎉 Redirigiendo al login...");
+      toast.success("Cuenta creada exitosamente  Redirigiendo al login...");
 
       setTimeout(() => {
         navigate("/auth/login", { replace: true });

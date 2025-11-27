@@ -7,30 +7,26 @@ import Spinner from "../components/UI/Spinner";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
-  CardElement,
+  PaymentElement,
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
 
-// Stripe initialization
-
-// Using an env variable keeps the publishable key out of the source code
+// Using an env variable keeps the publishable key out of the committed source code
 const pk = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 
-// Logging early helps catch misconfigured environments before Stripe is used
 if (!pk) {
-  console.error("❌ VITE_STRIPE_PUBLISHABLE_KEY no está definido.");
+  // Logging a generic message avoids leaking environment details to the console
+  console.error("Stripe publishable key no está configurada en el entorno.");
 }
 
 // Loading Stripe outside the component avoids recreating the Stripe instance on every render
 const stripePromise = pk ? loadStripe(pk) : null;
 
-// Small helper for consistent price formatting across the checkout
+// Small helper for consistent price formatting across the checkout UI
 const Price = ({ value }) => (
   <span>${Number(value ?? 0).toFixed(2)}</span>
 );
-
-// Main Checkout component
 
 function Checkout() {
   const { cart, clearCart } = useCart();
@@ -39,46 +35,46 @@ function Checkout() {
   const location = useLocation();
   const API_URL = import.meta.env.VITE_API_URL;
 
-  // Datos de promo / total que vienen desde el carrito (navigate("/checkout", { state: { totalWithPromo, appliedPromo } }))
+  // Promo data and pre-calculated totals may be passed from the cart to keep UI in sync
   const { totalWithPromo, appliedPromo } = location.state || {};
 
-  // Keeping intent-related info in one normalized object simplifies what we pass to <Elements> and the form
+  // Intent data obtained from backend (Stripe PaymentIntent metadata)
   const [intentData, setIntentData] = useState(null);
   const [loadingIntent, setLoadingIntent] = useState(false);
   const [error, setError] = useState("");
 
   const shipping = 0;
 
-  // Subtotal base: siempre el del carrito
+  // Subtotal is always taken from the current cart state so the UI reflects actual contents
   const subtotalBase = cart?.subtotal ?? 0;
 
-  // Descuento aplicado: si viene de appliedPromo, lo usamos; si no, 0
+  // Using discount from appliedPromo ensures the same promotion used in the cart is applied here
   const promoDiscount = appliedPromo?.discount_amount ?? 0;
 
-  // Subtotal después de promoción
+  // Subtotal after applying promotion; Math.max prevents negative totals
   const subtotalAfterPromo = useMemo(
     () => Math.max(0, subtotalBase - promoDiscount),
     [subtotalBase, promoDiscount]
   );
 
-  // Impuestos calculados sobre el subtotal con promo
+  // Taxes are derived from subtotalAfterPromo so discounts also reduce tax amount
   const taxes = useMemo(
     () => Math.round(subtotalAfterPromo * 0.09 * 100) / 100,
     [subtotalAfterPromo]
   );
 
-  // Total calculado en frontend (con promo + impuestos)
+  // Total is computed on the frontend as a fallback when no explicit totalWithPromo is provided
   const computedTotal = useMemo(
     () => subtotalAfterPromo + shipping + taxes,
     [subtotalAfterPromo, taxes]
   );
 
-  // Si el carrito nos mandó un total con promo ya calculado, lo usamos para mostrar;
-  // si no, usamos el total calculado aquí.
-  const total = typeof totalWithPromo === "number" ? totalWithPromo : computedTotal;
+  // If the cart already calculated a totalWithPromo, we prefer that value to keep consistency
+  const total =
+    typeof totalWithPromo === "number" ? totalWithPromo : computedTotal;
 
   const clientSecret = intentData?.client_secret ?? null;
-  const orderId = intentData?.order_id ?? null;
+  const orderId = intentData?.order_id ?? null; // reserved for future order tracking uses
 
   // Navigation guard so users cannot access /checkout with an empty cart
   useEffect(() => {
@@ -87,12 +83,12 @@ function Checkout() {
     }
   }, [cart, navigate]);
 
-  // Effect in charge of creating the PaymentIntent when there is a cart and a logged-in user
+  // Effect responsible for creating the PaymentIntent when the cart is valid and the user is logged in
   useEffect(() => {
     if (!cart || cart.items.length === 0) return;
 
-    // Redirecting early if there is no token prevents creating PaymentIntents for unauthenticated users
     if (!token) {
+      // Redirect to login if payment is attempted without authentication
       navigate("/login");
       return;
     }
@@ -102,8 +98,7 @@ function Checkout() {
       setError("");
 
       try {
-        // El backend AHORA ignora el amount del frontend y toma el total desde DB (carrito + promo aplicada),
-        // por eso no enviamos body aquí.
+        // Backend decides the final amount from DB to avoid trusting client-side totals
         const res = await fetch(`${API_URL}/payments/intent`, {
           method: "POST",
           headers: {
@@ -112,7 +107,6 @@ function Checkout() {
         });
 
         const data = await res.json();
-        console.log("🔎 Respuesta /payments/intent cruda:", data);
 
         if (!res.ok) {
           throw new Error(
@@ -120,22 +114,19 @@ function Checkout() {
           );
         }
 
-        // Normalizing the intent data received from the backend
-        // data puede ser:
-        // 1) { client_secret: "pi_..._secret_...", order_id, payment_method }
-        // 2) { client_secret: { client_secret: "pi_..._secret_...", order_id, payment_method } }
+        // Normalization layer to handle different shapes of client_secret responses
         let normalized = null;
 
         if (data && data.client_secret) {
           if (typeof data.client_secret === "string") {
-            // Caso plano
+            // Case where backend returns a plain client_secret string
             normalized = {
               client_secret: data.client_secret,
               order_id: data.order_id ?? null,
               payment_method: data.payment_method ?? null,
             };
           } else if (typeof data.client_secret === "object") {
-            // Caso anidado
+            // Case where backend nests clientSecret and related fields in an object
             const inner = data.client_secret;
             normalized = {
               client_secret:
@@ -154,9 +145,7 @@ function Checkout() {
           }
         }
 
-        console.log("✅ IntentData normalizado:", normalized);
-
-        // Validating that the normalized object contains a proper Stripe client_secret avoids runtime errors inside <Elements>
+        // Checking for a valid PaymentIntent key pattern helps catch malformed responses early
         if (
           !normalized ||
           typeof normalized.client_secret !== "string" ||
@@ -169,7 +158,7 @@ function Checkout() {
 
         setIntentData(normalized);
       } catch (err) {
-        console.error(err);
+        // Using a generic user-facing message while preserving the actual error in memory
         setError(err.message || "Ocurrió un error al crear el pago.");
       } finally {
         setLoadingIntent(false);
@@ -179,7 +168,7 @@ function Checkout() {
     createPaymentIntent();
   }, [API_URL, cart, token, navigate]);
 
-  // Simple fallback UI for the case where the user somehow bypassed the initial guard
+  // Simple fallback UI for the edge case where the guard didn't run or cart changed during navigation
   if (!cart || cart.items.length === 0) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-8">
@@ -224,20 +213,20 @@ function Checkout() {
             </div>
           )}
 
-          {/* Mounting <Elements> only when we have a valid clientSecret and a loaded Stripe instance prevents runtime errors */}
           {clientSecret &&
             typeof clientSecret === "string" &&
             stripePromise && (
               <Elements
+                // Mounting Elements only when clientSecret and Stripe instance exist avoids runtime errors
                 stripe={stripePromise}
                 options={{
-                  clientSecret: clientSecret,
+                  clientSecret,
                   appearance: { theme: "stripe" },
+                  paymentMethodOrder: ["card"],
                 }}
               >
-                <CardCheckoutForm
+                <PaymentCheckoutForm
                   total={total}
-                  clientSecret={clientSecret}
                   clearCart={clearCart}
                   onSuccess={() => navigate("/")}
                   orderId={orderId}
@@ -245,7 +234,6 @@ function Checkout() {
               </Elements>
             )}
 
-          {/* This message helps debug cases where the PaymentIntent was never created */}
           {!clientSecret && !loadingIntent && !error && (
             <p className="text-sm text-slate-500">
               No se pudo inicializar el pago. Intenta recargar la página.
@@ -318,146 +306,147 @@ function Checkout() {
   );
 }
 
-// The actual payment form using Stripe's CardElement
-
-function CardCheckoutForm({
-  total,
-  clientSecret,
-  clearCart,
-  onSuccess,
-  orderId,
-}) {
+function PaymentCheckoutForm({ total, clearCart, onSuccess, orderId }) {
   const stripe = useStripe();
   const elements = useElements();
 
-  const [billingName, setBillingName] = useState("");
-  const [billingEmail, setBillingEmail] = useState("");
-  const [processing, setProcessing] = useState(false);
+  const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState(null);
+  const [message, setMessage] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [cardError, setCardError] = useState("");
 
-  // Using this flag keeps the JSX simpler and avoids repeating the same null checks
+  // Using this flag centralizes all "Stripe not ready" checks in one place
   const stripeNotReady = !stripe || !elements;
+
+  const validateEmail = (value) => {
+    if (!value) return "Ingresa tu correo electrónico.";
+    // Lightweight regex for a basic email check without being overly strict
+    const basicEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!basicEmailRegex.test(value)) {
+      return "Ingresa un correo válido.";
+    }
+    return null;
+  };
+
+  const handleEmailBlur = () => {
+    const err = validateEmail(email);
+    setEmailError(err);
+  };
+
+  const handleEmailChange = (e) => {
+    setEmail(e.target.value);
+    // Clearing previous errors and messages while the user edits the field
+    setEmailError(null);
+    setMessage(null);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!stripe || !elements) return;
 
-    setProcessing(true);
+    const err = validateEmail(email);
+    if (err) {
+      // Showing the same validation message both near the input and as a global message
+      setEmailError(err);
+      setMessage(err);
+      return;
+    }
+
+    setIsLoading(true);
+    setMessage(null);
     setCardError("");
 
-    // Getting the mounted CardElement instance from Stripe Elements
-    const cardElement = elements.getElement(CardElement);
-
     try {
-      // confirmCardPayment uses the clientSecret from the PaymentIntent and the card details entered by the user
-      const { error, paymentIntent } = await stripe.confirmCardPayment(
-        clientSecret,
-        {
-          payment_method: {
-            card: cardElement,
-            billing_details: {
-              name: billingName || undefined,
-              email: billingEmail || undefined,
-            },
-          },
-        }
-      );
+      // PaymentElement uses confirmPayment to handle all payment method details
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          receipt_email: email || undefined,
+          // A return_url could be used if you configure redirect-based flows
+          // return_url: `${window.location.origin}/order-success`,
+        },
+        redirect: "if_required",
+      });
 
       if (error) {
-        console.error(error);
+        // Keeping both cardError and message in sync gives feedback in two places
         setCardError(error.message || "Error al procesar el pago.");
-        setProcessing(false);
+        setMessage(error.message || "Error al procesar el pago.");
+        setIsLoading(false);
         return;
       }
 
-      // Checking for "succeeded" ensures we only clear the cart on confirmed payments
       if (paymentIntent && paymentIntent.status === "succeeded") {
+        // Clearing cart here ensures it only happens when Stripe confirms the payment
         await clearCart();
+        setMessage("Pago realizado con éxito.");
         onSuccess?.();
       } else {
-        setCardError("No se pudo completar el pago. Inténtalo de nuevo.");
+        // Non-succeeded states are treated as failures at this stage
+        setMessage("No se pudo completar el pago. Inténtalo de nuevo.");
       }
-    } catch (err) {
-      console.error(err);
-      setCardError("Ocurrió un error inesperado. Intenta de nuevo.");
+    } catch {
+      // Generic message for unexpected exceptions, avoiding leaking error details
+      setMessage("Ocurrió un error inesperado. Intenta de nuevo.");
     } finally {
-      setProcessing(false);
+      setIsLoading(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Billing information fields help with Stripe's risk checks and provide more context for the charge */}
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-slate-700">
-            Nombre en la tarjeta
-          </label>
-          <input
-            type="text"
-            value={billingName}
-            onChange={(e) => setBillingName(e.target.value)}
-            className="h-10 rounded-lg border px-3 text-sm outline-none focus:ring-2 focus:ring-slate-900/50"
-            placeholder="Nombre completo"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-slate-700">
-            Correo electrónico
-          </label>
-          <input
-            type="email"
-            value={billingEmail}
-            onChange={(e) => setBillingEmail(e.target.value)}
-            className="h-10 rounded-lg border px-3 text-sm outline-none focus:ring-2 focus:ring-slate-900/50"
-            placeholder="tucorreo@ejemplo.com"
-          />
-        </div>
-      </div>
-
-      {/* CardElement encapsulates all card fields, validation and Stripe logic in one UI component */}
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-slate-700">
-          Datos de la tarjeta
+      {/* Email — collected for receipt and basic verification */}
+      <div className="flex flex-col gap-1">
+        <label
+          htmlFor="email"
+          className="text-sm font-medium text-slate-700"
+        >
+          Email
         </label>
-        <div className="rounded-xl border px-3 py-3 bg-white">
-          <CardElement
-            options={{
-              hidePostalCode: true,
-              style: {
-                base: {
-                  fontSize: "16px",
-                  color: "#0f172a",
-                  "::placeholder": {
-                    color: "#9ca3af",
-                  },
-                },
-                invalid: {
-                  color: "#ef4444",
-                },
-              },
-            }}
-            onReady={(el) => {
-              // Logging readiness makes it easier to debug when Stripe fields fail to mount
-              console.log("✅ Stripe CardElement READY", el);
-            }}
-            onChange={(event) => {
-              // Reacting to CardElement events lets the form show inline validation errors from Stripe
-              console.log("CardElement change:", event);
-              if (event.error) {
-                setCardError(event.error.message);
-              } else {
-                setCardError("");
-              }
-            }}
-          />
-        </div>
-        {stripeNotReady && (
-          <p className="text-xs text-amber-600 mt-1">
-            Stripe todavía no está listo (stripe o elements es null).
-          </p>
+        <input
+          id="email"
+          type="email"
+          value={email}
+          onChange={handleEmailChange}
+          onBlur={handleEmailBlur}
+          className={`h-10 rounded-lg border px-3 text-sm outline-none focus:ring-2 focus:ring-slate-900/50 ${
+            emailError ? "border-red-400" : "border-slate-300"
+          }`}
+          placeholder="tucorreo@ejemplo.com"
+        />
+        {emailError && (
+          <div className="text-xs text-red-600 mt-1" id="email-errors">
+            {emailError}
+          </div>
         )}
       </div>
+
+      {/* Payment header */}
+      <h4 className="mt-4 text-sm font-semibold text-slate-800">
+        Método de pago
+      </h4>
+
+      {/* PaymentElement encapsulates all card / payment method fields according to Stripe config */}
+      <div className="rounded-xl border px-3 py-3 bg-white">
+        <PaymentElement
+          id="payment-element"
+          onChange={(event) => {
+            // Using onChange to surface real-time validation errors from Stripe UI
+            if (event.error) {
+              setCardError(event.error.message);
+            } else {
+              setCardError("");
+            }
+          }}
+        />
+      </div>
+
+      {stripeNotReady && (
+        <p className="text-xs text-amber-600 mt-1">
+          Stripe todavía no está listo, espera un momento…
+        </p>
+      )}
 
       {cardError && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-700">
@@ -467,19 +456,33 @@ function CardCheckoutForm({
 
       <button
         type="submit"
-        disabled={stripeNotReady || processing}
-        className="mt-2 flex h-11 w-full items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+        disabled={stripeNotReady || isLoading}
+        id="submit"
+        className="mt-2 flex h-11 w-full items-center justify-center rounded-xl bg-primary-400 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {processing ? (
+        {isLoading ? (
           <div className="flex items-center gap-2">
             <Spinner inline text="Procesando pago" />
           </div>
         ) : (
           <>
-            Pagar <span className="ml-1"><Price value={total} /></span>
+            Pagar{" "}
+            <span className="ml-1">
+              <Price value={total} />
+            </span>
           </>
         )}
       </button>
+
+      {/* Final status / error messages for the payment attempt */}
+      {message && (
+        <div
+          id="payment-message"
+          className="mt-2 text-xs text-slate-700"
+        >
+          {message}
+        </div>
+      )}
     </form>
   );
 }

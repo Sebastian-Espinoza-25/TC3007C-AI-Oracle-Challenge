@@ -377,7 +377,7 @@ const ProductDetail = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F7F7] pt-10 pb-24 font-['Inter']">
+    <div className="min-h-screen bg-[#F7F7F7] pt-10 pb-24">
       <div className="max-w-7xl mx-auto px-8">
         {/* Product details */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-20 bg-white rounded-2xl p-10 shadow-lg">
@@ -408,7 +408,7 @@ const ProductDetail = () => {
               {formattedPrice}
             </p>
 
-            <p className="text-dark-400 leading-relaxed mb-6">
+            <p className="text-xl text-dark-400 leading-relaxed mb-6">
               {product.detail_desc}
             </p>
 
@@ -511,7 +511,7 @@ const ProductDetail = () => {
               </div>
 
               <CustomButton
-                text={isAvailable ? "Añadir al carrito" : "Agotado"}
+                text={isAvailable ? "Agregar al carrito" : "Agotado"}
                 style={"secondary"}
                 extraStyles={`w-full md:w-auto cursor-pointer bg-indigo-600 text-center py-4 px-8 text-lg text-white rounded-xl font-bold 
                   hover:bg-indigo-700 hover:shadow-xl transition duration-200 
