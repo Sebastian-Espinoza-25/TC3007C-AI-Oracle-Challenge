@@ -129,12 +129,34 @@ class ClusterRecommender:
         if "article_id" not in df.columns:
             raise ValueError("El DataFrame debe contener la columna 'article_id'.")
 
-        # Copia + crea texto unificado
+        # Copia base
         self._df = df.reset_index(drop=True).copy()
-        self._df["__text_all__"] = _coalesce_text(self._df, self.text_cols)
+
+        # Texto unificado + normalizado
+        self._df["__text_all__"] = (
+            _coalesce_text(self._df, self.text_cols)
+            .fillna("")
+            .astype(str)
+            .str.lower()
+            .str.strip()
+        )
+
+        # Normalizar TODAS las categóricas usadas en el modelo
+        for c in self.cat_cols:
+            if c in self._df.columns:
+                self._df[c] = (
+                    self._df[c]
+                    .fillna("")
+                    .astype(str)
+                    .str.lower()
+                    .str.strip()
+                )
 
         # Preservar ceros a la izquierda: IDs como string
-        self._article_index = {str(aid): i for i, aid in enumerate(self._df["article_id"].astype(str).values)}
+        self._article_index = {
+            str(aid): i
+            for i, aid in enumerate(self._df["article_id"].astype(str).values)
+        }
 
         # Pipeline de features + SVD
         self._feature_pipeline = self._build_pipeline(self._df)
@@ -148,7 +170,12 @@ class ClusterRecommender:
             k = self._choose_k(self._X_reduced)
 
         # KMeans
-        self._kmeans = KMeans(n_clusters=k, random_state=self.random_state, n_init=self.n_init, max_iter=self.max_iter)
+        self._kmeans = KMeans(
+            n_clusters=k,
+            random_state=self.random_state,
+            n_init=self.n_init,
+            max_iter=self.max_iter,
+        )
         self._labels_ = self._kmeans.fit_predict(self._X_reduced)
         return self
 
@@ -566,3 +593,277 @@ class ClusterRecommender:
         cols = [c for c in cols if c in out.columns]
         return out.sort_values("__sim__", ascending=False).head(k)[cols]
 
+
+
+    def recommend_from_payload(
+        self,
+        payload: dict,
+        k: int = 10,
+        dentro_cluster: bool = True,
+        mode: str = "max",
+        key_map: dict | None = None,
+        field_weights: dict | None = None,
+            ) -> pd.DataFrame:
+        """
+        Default pesos por campo (como pediste):
+        description: 2x
+        product_type_name: 2x
+        product_group_name: 1x
+        graphical_appearance_name: 1x
+        colour_group_name: 2x
+        index_group_name: 2x
+
+        - Case-insensitive (lower/strip).
+        - Los pesos se aplican SOLO al query, reescalando:
+            texto por bloque,
+            y categóricas por columna (sus dummies OHE).
+        """
+
+        self._ensure_fitted()
+        key_map = key_map or {}
+
+        # ---- pesos por campo ----
+        default_fw = {
+                "description": 15.0,
+                "product_type_name": 2.0,
+                "product_group_name": 1.0,
+                "graphical_appearance_name": 1.0,
+                "colour_group_name": 0.95,
+                "index_group_name": 10.0,
+        }
+        if field_weights:
+            default_fw.update(field_weights)
+        fw = default_fw
+
+        # ---- 1) construir fila query (case-insensitive) ----
+        row = {}
+        desc_key = key_map.get("description", "description")
+        row["__text_all__"] = str(payload.get(desc_key, "")).lower().strip()
+
+        for k_in, v in payload.items():
+            if k_in == desc_key:
+                continue
+            col_name = key_map.get(k_in, k_in)
+            row[col_name] = "" if v is None else str(v).lower().strip()
+
+        df_q = pd.DataFrame([row])
+
+        # ---- 2) transformers entrenados ----
+        pipe = self._feature_pipeline
+        coltx: ColumnTransformer = pipe.named_steps["features"]
+        svd: TruncatedSVD = pipe.named_steps["svd"]
+
+        text_tr = coltx.named_transformers_["text"]     # Pipeline(TFIDF)
+        ohe = coltx.named_transformers_.get("cat", None)
+
+        # columnas categóricas reales usadas al fit (orden exacto)
+        cat_existing = []
+        if ohe is not None:
+            for name, _, cols in coltx.transformers_:
+                if name == "cat":
+                    cat_existing = list(cols)
+                    break
+
+        # ---- 3) Texto + peso ----
+        base_text_w = float(getattr(self, "text_weight", 1.0))
+        X_text = text_tr.transform(df_q["__text_all__"])
+        X_text = X_text * (base_text_w * float(fw.get("description", 1.0)))
+
+        # ---- 4) Cats + pesos por columna ----
+        if ohe is not None and cat_existing:
+            # completa columnas faltantes
+            for c in cat_existing:
+                if c not in df_q.columns:
+                    df_q[c] = ""
+                else:
+                    df_q[c] = df_q[c].fillna("").astype(str).str.lower().str.strip()
+
+            X_cat = ohe.transform(df_q[cat_existing])
+
+            # pesos por columna (mapeados a nombres reales del df)
+            weight_by_col = {}
+            for payload_key, w in fw.items():
+                if payload_key == "description":
+                    continue
+                col_real = key_map.get(payload_key, payload_key)
+                weight_by_col[col_real] = float(w)
+
+            base_cat_w = float(getattr(self, "cat_weight", 1.0))
+
+            # construye vector de pesos para cada dummy OHE
+            cats_list = getattr(ohe, "categories_", [])
+            n_out = sum(len(cats) for cats in cats_list)
+            weight_vec = np.ones(n_out, dtype=float)
+
+            off = 0
+            for col, cats in zip(cat_existing, cats_list):
+                wcol = base_cat_w * weight_by_col.get(col, 1.0)
+                weight_vec[off:off + len(cats)] = wcol
+                off += len(cats)
+
+            X_cat = X_cat.multiply(weight_vec)
+            X_full = sparse.hstack([X_text, X_cat])
+        else:
+            X_full = X_text
+
+        # ---- 5) SVD al mismo espacio ----
+        q_red = svd.transform(X_full)
+        if sparse.issparse(q_red):
+            q_red = q_red.toarray()
+
+        # ---- 6) candidatos ----
+        if dentro_cluster:
+            cl = int(self._kmeans.predict(q_red)[0])
+            cand_idx = np.where(self._labels_ == cl)[0]
+        else:
+            cand_idx = np.arange(self._X_reduced.shape[0])
+
+        C = self._X_reduced[cand_idx]
+        S = cosine_similarity(C, q_red)
+
+        m = mode.lower().strip()
+        if m == "max":
+            sims = S.max(axis=1)
+        elif m == "avg":
+            sims = S.mean(axis=1)
+        elif m == "min":
+            sims = S.min(axis=1)
+        else:
+            raise ValueError("mode debe ser 'max' | 'avg' | 'min'")
+
+        out = self._df.iloc[cand_idx].copy()
+        out["__sim__"] = sims
+
+        cols = [
+            "article_id","product_code","prod_name","garment_group_name",
+            "section_name","index_name","perceived_colour_master_name",
+            "graphical_appearance_name","__text_all__","__sim__"
+        ]
+        cols = [c for c in cols if c in out.columns]
+        return out.sort_values("__sim__", ascending=False).head(k)[cols]
+
+
+    def recommend_from_payload_ids(
+        self,
+        payload: dict,
+        k: int = 10,
+        dentro_cluster: bool = True,
+        mode: str = "max",
+        key_map: dict | None = None,
+        field_weights: dict | None = None,
+        ):
+            # no exigir df
+            self._ensure_fitted(need_df=False)
+            key_map = key_map or {}
+
+            default_fw = {
+                "description": 15.0,
+                "product_type_name": 2.0,
+                "product_group_name": 1.0,
+                "graphical_appearance_name": 1.0,
+                "colour_group_name": 0.95,
+                "index_group_name": 10.0,
+            }
+            if field_weights:
+                default_fw.update(field_weights)
+            fw = default_fw
+
+            # 1) fila query (case-insensitive)
+            row = {}
+            desc_key = key_map.get("description", "description")
+            row["__text_all__"] = str(payload.get(desc_key, "")).lower().strip()
+
+            for k_in, v in payload.items():
+                if k_in == desc_key:
+                    continue
+                col_name = key_map.get(k_in, k_in)
+                row[col_name] = "" if v is None else str(v).lower().strip()
+
+            df_q = pd.DataFrame([row])
+
+            # 2) transformers entrenados
+            pipe = self._feature_pipeline
+            coltx: ColumnTransformer = pipe.named_steps["features"]
+            svd: TruncatedSVD = pipe.named_steps["svd"]
+
+            text_tr = coltx.named_transformers_["text"]
+            ohe = coltx.named_transformers_.get("cat", None)
+
+            cat_existing = []
+            if ohe is not None:
+                for name, _, cols in coltx.transformers_:
+                    if name == "cat":
+                        cat_existing = list(cols)
+                        break
+
+            # 3) texto + peso
+            base_text_w = float(getattr(self, "text_weight", 1.0))
+            X_text = text_tr.transform(df_q["__text_all__"])
+            X_text = X_text * (base_text_w * float(fw.get("description", 1.0)))
+
+            # 4) cats + pesos por columna
+            if ohe is not None and cat_existing:
+                for c in cat_existing:
+                    if c not in df_q.columns:
+                        df_q[c] = ""
+
+                X_cat = ohe.transform(df_q[cat_existing])
+
+                weight_by_col = {}
+                for payload_key, w in fw.items():
+                    if payload_key == "description":
+                        continue
+                    col_real = key_map.get(payload_key, payload_key)
+                    weight_by_col[col_real] = float(w)
+
+                base_cat_w = float(getattr(self, "cat_weight", 1.0))
+
+                cats_list = getattr(ohe, "categories_", [])
+                n_out = sum(len(cats) for cats in cats_list)
+                weight_vec = np.ones(n_out, dtype=float)
+
+                off = 0
+                for col, cats in zip(cat_existing, cats_list):
+                    wcol = base_cat_w * weight_by_col.get(col, 1.0)
+                    weight_vec[off:off + len(cats)] = wcol
+                    off += len(cats)
+
+                X_cat = X_cat.multiply(weight_vec)
+                X_full = sparse.hstack([X_text, X_cat])
+            else:
+                X_full = X_text
+
+            # 5) SVD
+            q_red = svd.transform(X_full)
+            if sparse.issparse(q_red):
+                q_red = q_red.toarray()
+
+            # 6) candidatos
+            if dentro_cluster:
+                cl = int(self._kmeans.predict(q_red)[0])
+                cand_idx = np.where(self._labels_ == cl)[0]
+            else:
+                cand_idx = np.arange(self._X_reduced.shape[0])
+
+            C = self._X_reduced[cand_idx]
+            S = cosine_similarity(C, q_red)
+
+            m = mode.lower().strip()
+            if m == "max":
+                sims = S.max(axis=1)
+            elif m == "avg":
+                sims = S.mean(axis=1)
+            elif m == "min":
+                sims = S.min(axis=1)
+            else:
+                raise ValueError("mode debe ser 'max' | 'avg' | 'min'")
+
+            # 7) ordenar y devolver IDs
+            order = np.argsort(-sims)[:k]
+            top_idx = cand_idx[order]
+
+            inv = {i: aid for aid, i in self._article_index.items()}  # idx->article_id
+            top_ids = [inv[i] for i in top_idx]
+            top_scores = sims[order]
+
+            return top_ids

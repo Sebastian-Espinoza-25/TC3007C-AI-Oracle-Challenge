@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useCart } from "../contexts/CartContext";
 import { useAuth } from "../contexts/AuthContext";
 import Spinner from "../components/UI/Spinner";
@@ -12,53 +12,86 @@ import {
   useElements,
 } from "@stripe/react-stripe-js";
 
-// ===================== STRIPE INIT =====================
+// Stripe initialization
+
+// Using an env variable keeps the publishable key out of the source code
 const pk = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 
+// Logging early helps catch misconfigured environments before Stripe is used
 if (!pk) {
   console.error("❌ VITE_STRIPE_PUBLISHABLE_KEY no está definido.");
 }
 
+// Loading Stripe outside the component avoids recreating the Stripe instance on every render
 const stripePromise = pk ? loadStripe(pk) : null;
 
+// Small helper for consistent price formatting across the checkout
 const Price = ({ value }) => (
   <span>${Number(value ?? 0).toFixed(2)}</span>
 );
 
-// ===================== MAIN PAGE =====================
+// Main Checkout component
 
 function Checkout() {
   const { cart, clearCart } = useCart();
   const { token } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const API_URL = import.meta.env.VITE_API_URL;
 
-  // Guardamos un objeto ya NORMALIZADO: { client_secret: string, order_id, payment_method }
+  // Datos de promo / total que vienen desde el carrito (navigate("/checkout", { state: { totalWithPromo, appliedPromo } }))
+  const { totalWithPromo, appliedPromo } = location.state || {};
+
+  // Keeping intent-related info in one normalized object simplifies what we pass to <Elements> and the form
   const [intentData, setIntentData] = useState(null);
   const [loadingIntent, setLoadingIntent] = useState(false);
   const [error, setError] = useState("");
 
   const shipping = 0;
+
+  // Subtotal base: siempre el del carrito
+  const subtotalBase = cart?.subtotal ?? 0;
+
+  // Descuento aplicado: si viene de appliedPromo, lo usamos; si no, 0
+  const promoDiscount = appliedPromo?.discount_amount ?? 0;
+
+  // Subtotal después de promoción
+  const subtotalAfterPromo = useMemo(
+    () => Math.max(0, subtotalBase - promoDiscount),
+    [subtotalBase, promoDiscount]
+  );
+
+  // Impuestos calculados sobre el subtotal con promo
   const taxes = useMemo(
-    () => Math.round(cart.subtotal * 0.09 * 100) / 100,
-    [cart.subtotal]
+    () => Math.round(subtotalAfterPromo * 0.09 * 100) / 100,
+    [subtotalAfterPromo]
   );
-  const total = useMemo(
-    () => cart.subtotal + shipping + taxes,
-    [cart.subtotal, taxes]
+
+  // Total calculado en frontend (con promo + impuestos)
+  const computedTotal = useMemo(
+    () => subtotalAfterPromo + shipping + taxes,
+    [subtotalAfterPromo, taxes]
   );
+
+  // Si el carrito nos mandó un total con promo ya calculado, lo usamos para mostrar;
+  // si no, usamos el total calculado aquí.
+  const total = typeof totalWithPromo === "number" ? totalWithPromo : computedTotal;
 
   const clientSecret = intentData?.client_secret ?? null;
   const orderId = intentData?.order_id ?? null;
 
+  // Navigation guard so users cannot access /checkout with an empty cart
   useEffect(() => {
     if (!cart || cart.items.length === 0) {
       navigate("/cart");
     }
   }, [cart, navigate]);
 
+  // Effect in charge of creating the PaymentIntent when there is a cart and a logged-in user
   useEffect(() => {
     if (!cart || cart.items.length === 0) return;
+
+    // Redirecting early if there is no token prevents creating PaymentIntents for unauthenticated users
     if (!token) {
       navigate("/login");
       return;
@@ -69,15 +102,13 @@ function Checkout() {
       setError("");
 
       try {
+        // El backend AHORA ignora el amount del frontend y toma el total desde DB (carrito + promo aplicada),
+        // por eso no enviamos body aquí.
         const res = await fetch(`${API_URL}/payments/intent`, {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            amount: total,
-          }),
         });
 
         const data = await res.json();
@@ -89,7 +120,7 @@ function Checkout() {
           );
         }
 
-        // ===================== NORMALIZACIÓN =====================
+        // Normalizing the intent data received from the backend
         // data puede ser:
         // 1) { client_secret: "pi_..._secret_...", order_id, payment_method }
         // 2) { client_secret: { client_secret: "pi_..._secret_...", order_id, payment_method } }
@@ -97,14 +128,14 @@ function Checkout() {
 
         if (data && data.client_secret) {
           if (typeof data.client_secret === "string") {
-            // Caso 1: ya viene plano
+            // Caso plano
             normalized = {
               client_secret: data.client_secret,
               order_id: data.order_id ?? null,
               payment_method: data.payment_method ?? null,
             };
           } else if (typeof data.client_secret === "object") {
-            // Caso 2: viene anidado
+            // Caso anidado
             const inner = data.client_secret;
             normalized = {
               client_secret:
@@ -125,6 +156,7 @@ function Checkout() {
 
         console.log("✅ IntentData normalizado:", normalized);
 
+        // Validating that the normalized object contains a proper Stripe client_secret avoids runtime errors inside <Elements>
         if (
           !normalized ||
           typeof normalized.client_secret !== "string" ||
@@ -145,8 +177,9 @@ function Checkout() {
     };
 
     createPaymentIntent();
-  }, [API_URL, cart, token, total, navigate]);
+  }, [API_URL, cart, token, navigate]);
 
+  // Simple fallback UI for the case where the user somehow bypassed the initial guard
   if (!cart || cart.items.length === 0) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-8">
@@ -170,7 +203,7 @@ function Checkout() {
       </header>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr),minmax(0,1.2fr)]">
-        {/* Columna izquierda: pago */}
+        {/* Left column: payment section */}
         <section className="rounded-2xl bg-white p-6 shadow-lg">
           <h2 className="mb-4 text-lg font-semibold">Datos de pago</h2>
 
@@ -191,7 +224,7 @@ function Checkout() {
             </div>
           )}
 
-          {/* Solo montamos Elements si tenemos clientSecret string */}
+          {/* Mounting <Elements> only when we have a valid clientSecret and a loaded Stripe instance prevents runtime errors */}
           {clientSecret &&
             typeof clientSecret === "string" &&
             stripePromise && (
@@ -212,6 +245,7 @@ function Checkout() {
               </Elements>
             )}
 
+          {/* This message helps debug cases where the PaymentIntent was never created */}
           {!clientSecret && !loadingIntent && !error && (
             <p className="text-sm text-slate-500">
               No se pudo inicializar el pago. Intenta recargar la página.
@@ -219,7 +253,7 @@ function Checkout() {
           )}
         </section>
 
-        {/* Columna derecha: resumen */}
+        {/* Right column: order summary */}
         <aside className="rounded-2xl bg-white p-6 shadow-lg">
           <h2 className="mb-4 text-lg font-semibold">Resumen del pedido</h2>
 
@@ -248,9 +282,19 @@ function Checkout() {
             <div className="flex justify-between">
               <span>Subtotal</span>
               <span className="font-medium">
-                <Price value={cart.subtotal} />
+                <Price value={subtotalBase} />
               </span>
             </div>
+
+            {promoDiscount > 0 && (
+              <div className="flex justify-between text-emerald-700">
+                <span>Descuento promo</span>
+                <span className="font-medium">
+                  -<Price value={promoDiscount} />
+                </span>
+              </div>
+            )}
+
             <div className="flex justify-between">
               <span>Envío</span>
               <span className="font-medium">Gratis</span>
@@ -274,9 +318,15 @@ function Checkout() {
   );
 }
 
-// ===================== CARD FORM =====================
+// The actual payment form using Stripe's CardElement
 
-function CardCheckoutForm({ total, clientSecret, clearCart, onSuccess, orderId }) {
+function CardCheckoutForm({
+  total,
+  clientSecret,
+  clearCart,
+  onSuccess,
+  orderId,
+}) {
   const stripe = useStripe();
   const elements = useElements();
 
@@ -285,6 +335,7 @@ function CardCheckoutForm({ total, clientSecret, clearCart, onSuccess, orderId }
   const [processing, setProcessing] = useState(false);
   const [cardError, setCardError] = useState("");
 
+  // Using this flag keeps the JSX simpler and avoids repeating the same null checks
   const stripeNotReady = !stripe || !elements;
 
   const handleSubmit = async (e) => {
@@ -294,9 +345,11 @@ function CardCheckoutForm({ total, clientSecret, clearCart, onSuccess, orderId }
     setProcessing(true);
     setCardError("");
 
+    // Getting the mounted CardElement instance from Stripe Elements
     const cardElement = elements.getElement(CardElement);
 
     try {
+      // confirmCardPayment uses the clientSecret from the PaymentIntent and the card details entered by the user
       const { error, paymentIntent } = await stripe.confirmCardPayment(
         clientSecret,
         {
@@ -317,6 +370,7 @@ function CardCheckoutForm({ total, clientSecret, clearCart, onSuccess, orderId }
         return;
       }
 
+      // Checking for "succeeded" ensures we only clear the cart on confirmed payments
       if (paymentIntent && paymentIntent.status === "succeeded") {
         await clearCart();
         onSuccess?.();
@@ -333,7 +387,7 @@ function CardCheckoutForm({ total, clientSecret, clearCart, onSuccess, orderId }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Datos de facturación */}
+      {/* Billing information fields help with Stripe's risk checks and provide more context for the charge */}
       <div className="grid gap-3 md:grid-cols-2">
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-slate-700">
@@ -361,7 +415,7 @@ function CardCheckoutForm({ total, clientSecret, clearCart, onSuccess, orderId }
         </div>
       </div>
 
-      {/* CardElement */}
+      {/* CardElement encapsulates all card fields, validation and Stripe logic in one UI component */}
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium text-slate-700">
           Datos de la tarjeta
@@ -384,9 +438,11 @@ function CardCheckoutForm({ total, clientSecret, clearCart, onSuccess, orderId }
               },
             }}
             onReady={(el) => {
+              // Logging readiness makes it easier to debug when Stripe fields fail to mount
               console.log("✅ Stripe CardElement READY", el);
             }}
             onChange={(event) => {
+              // Reacting to CardElement events lets the form show inline validation errors from Stripe
               console.log("CardElement change:", event);
               if (event.error) {
                 setCardError(event.error.message);
