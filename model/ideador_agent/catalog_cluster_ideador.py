@@ -129,12 +129,34 @@ class ClusterRecommender:
         if "article_id" not in df.columns:
             raise ValueError("El DataFrame debe contener la columna 'article_id'.")
 
-        # Copia + crea texto unificado
+        # Copia base
         self._df = df.reset_index(drop=True).copy()
-        self._df["__text_all__"] = _coalesce_text(self._df, self.text_cols)
+
+        # Texto unificado + normalizado
+        self._df["__text_all__"] = (
+            _coalesce_text(self._df, self.text_cols)
+            .fillna("")
+            .astype(str)
+            .str.lower()
+            .str.strip()
+        )
+
+        # Normalizar TODAS las categóricas usadas en el modelo
+        for c in self.cat_cols:
+            if c in self._df.columns:
+                self._df[c] = (
+                    self._df[c]
+                    .fillna("")
+                    .astype(str)
+                    .str.lower()
+                    .str.strip()
+                )
 
         # Preservar ceros a la izquierda: IDs como string
-        self._article_index = {str(aid): i for i, aid in enumerate(self._df["article_id"].astype(str).values)}
+        self._article_index = {
+            str(aid): i
+            for i, aid in enumerate(self._df["article_id"].astype(str).values)
+        }
 
         # Pipeline de features + SVD
         self._feature_pipeline = self._build_pipeline(self._df)
@@ -148,7 +170,12 @@ class ClusterRecommender:
             k = self._choose_k(self._X_reduced)
 
         # KMeans
-        self._kmeans = KMeans(n_clusters=k, random_state=self.random_state, n_init=self.n_init, max_iter=self.max_iter)
+        self._kmeans = KMeans(
+            n_clusters=k,
+            random_state=self.random_state,
+            n_init=self.n_init,
+            max_iter=self.max_iter,
+        )
         self._labels_ = self._kmeans.fit_predict(self._X_reduced)
         return self
 
@@ -597,12 +624,12 @@ class ClusterRecommender:
 
         # ---- pesos por campo ----
         default_fw = {
-            "description": 2.0,
-            "product_type_name": 2.0,
-            "product_group_name": 1.0,
-            "graphical_appearance_name": 1.0,
-            "colour_group_name": 2.0,
-            "index_group_name": 2.0,
+                "description": 15.0,
+                "product_type_name": 2.0,
+                "product_group_name": 1.0,
+                "graphical_appearance_name": 1.0,
+                "colour_group_name": 0.95,
+                "index_group_name": 10.0,
         }
         if field_weights:
             default_fw.update(field_weights)
@@ -730,12 +757,12 @@ class ClusterRecommender:
             key_map = key_map or {}
 
             default_fw = {
-                "description": 2.0,
+                "description": 15.0,
                 "product_type_name": 2.0,
                 "product_group_name": 1.0,
                 "graphical_appearance_name": 1.0,
-                "colour_group_name": 2.0,
-                "index_group_name": 2.0,
+                "colour_group_name": 0.95,
+                "index_group_name": 10.0,
             }
             if field_weights:
                 default_fw.update(field_weights)

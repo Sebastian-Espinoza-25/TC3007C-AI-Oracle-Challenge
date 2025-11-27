@@ -176,6 +176,7 @@ def catalog_visual_agent():
 def refresh_images():
     days = request.args.get("days", default=30, type=int)
     limit = request.args.get("limit", default=None, type=int)
+    offset = request.args.get("offset", default=0, type=int)
     skip_existing = request.args.get("skip_existing", default="true").lower() in ("1", "true", "yes")
 
     pool = current_app.config["DB_POOL"]
@@ -184,6 +185,7 @@ def refresh_images():
         pool,
         days_valid=days,
         limit=limit,
+        offset=offset,
         skip_existing=skip_existing
     )
 
@@ -192,3 +194,4 @@ def refresh_images():
         "message": "Image URLs refreshed successfully",
         "details": result
     }), 200
+
