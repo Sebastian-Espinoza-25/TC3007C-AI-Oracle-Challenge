@@ -32,6 +32,7 @@ const ProductCard = ({ product, onAddToCart, isOverlay, isLoading }) => {
   const price = product.price || product.retail_price || 99;
   const stock = product.stock || 3;
   const image = product.image_url || product.image || imagen;
+  const color = product.color || 'N/A';
 
   const numericPrice = parseFloat(price) || 0;
   const displayPrice = `$${Math.round(numericPrice)}`;
@@ -80,7 +81,7 @@ const ProductCard = ({ product, onAddToCart, isOverlay, isLoading }) => {
               maskImage: 'linear-gradient(to right, black 90%, transparent 100%)',
             }}
           >
-            {displayName}
+            {displayName + ' ' + color } 
           </h3>
         </a>
 

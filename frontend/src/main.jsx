@@ -20,8 +20,7 @@ import Logout from './pages/Logout';
 import Atelier from './pages/Atelier';
 import ProductDetail from './pages/ProductDetail';
 import Preferences from './pages/Preferences.jsx';
-
-
+import Catalog from './pages/Catalog.jsx';
 
 const router = createBrowserRouter([
   {
@@ -36,6 +35,7 @@ const router = createBrowserRouter([
       {path: "auth/logout", element: <Logout/>},
       {path: "auth/login", element: <Login/>},
       {path: "preferences", element: <Preferences/>},
+      {path: "catalog", element: <Catalog/>},
     ]
   },
   {

@@ -31,7 +31,7 @@ const Home = () => {
   // Force 4 columns on large screens in both states so the number of cards stays stable when the sidebar opens
   const productGridClasses = `
         grid grid-cols-1 sm:grid-cols-2 gap-4
-        ${isSidebarOpen ? "lg:grid-cols-4" : "lg:grid-cols-4"} // both 4 to keep density consistent
+        ${isSidebarOpen ? "lg:grid-cols-4" : "lg:grid-cols-4"}
     `;
 
   if (isLoading) {

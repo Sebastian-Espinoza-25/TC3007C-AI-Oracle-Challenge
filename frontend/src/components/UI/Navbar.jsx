@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation, Link, useNavigate } from "react-router-dom";
 import CustomButton from "./CustomButton";
+import SearchBar from "./SearchBar";
 import { useAuth } from "../../contexts/AuthContext";
 
 // Group icon imports so visual dependencies are easy to scan and maintain
@@ -15,7 +16,7 @@ import {
   RiRobot2Line,
 } from "react-icons/ri";
 
-const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
+const Navbar = ({ onToggleSidebar, isSidebarOpen, featuredProducts }) => {
   const { isLoggedIn, logout } = useAuth();
 
   const location = useLocation();
@@ -196,10 +197,10 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
           </div>
         </div>
 
-        {/* 2. CENTER SECTION: Desktop search */}
-        <SearchInput />
+        {/* CENTER SECTION: Desktop search */}
+        <SearchBar products={featuredProducts} />
 
-        {/* 3. RIGHT SECTION: Auth controls and assistant button */}
+        {/* RIGHT SECTION: Auth controls and assistant button */}
         <div className="flex gap-4 items-center">
           {/* Avoid duplicating auth UI while already on auth pages */}
           {!isAuthPage && (isLoggedIn ? <LoggedInLinks /> : <LoggedOutButtons />)}
@@ -208,7 +209,7 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
           {!(isAuthPage || isCartPage || isCheckoutPage) && <AgentButton />}
         </div>
 
-        {/* 4. MOBILE logo pinned to center to balance the layout with menu on the left */}
+        {/* MOBILE logo pinned to center to balance the layout with menu on the left */}
         <div className="cursor-pointer md:hidden absolute left-1/2 transform -translate-x-1/2">
           <Link to="/">
             <h1 className="text-4xl text-primary-500 font-bold">Allure</h1>
