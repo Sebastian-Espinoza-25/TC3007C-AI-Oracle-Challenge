@@ -11,7 +11,7 @@ from langchain_core.messages import HumanMessage
 from langchain_community.chat_models import ChatOCIGenAI
 
 OCI_COMPARTMENT_ID = os.getenv("OCI_COMPARTMENT_ID")
-OCI_GENAI_IDEATOR_MODEL_ID = os.getenv("OCI_GENAI_MODEL_ID")
+OCI_GENAI_IDEATOR_MODEL_ID = os.getenv("OCI_GENAI_IDEATOR_MODEL_ID")
 OCI_GENAI_ENDPOINT = os.getenv(
     "OCI_GENAI_ENDPOINT",
     "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com"
