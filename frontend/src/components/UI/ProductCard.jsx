@@ -17,15 +17,14 @@ const ProductCard = ({ product, onAddToCart, isOverlay, isLoading }) => {
   // Use dnd-kit transform to move the element while dragging
   const style = {
     transform: CSS.Translate.toString(transform),
-    // Fade the original card while dragging so the DragOverlay feels like the “real” element
-    opacity: isDragging && !isOverlay ? 0.2 : 1,
+    visibility: isDragging && !isOverlay ? 'hidden' : 'visible',
     transition: 'box-shadow 0.2s, transform 0.2s',
     cursor: isOverlay ? 'grabbing' : 'grab',
-    // Keep z-index low on the original card and let the overlay handle stacking
     zIndex: isDragging && !isOverlay ? 1 : 'auto',
     boxShadow: isDragging && !isOverlay
-      ? '0 10px 20px rgba(0, 0, 0, 0.0)' // Remove visible shadow from the ghost card
+      ? '0 10px 20px rgba(0, 0, 0, 0.0)'
       : '0 4px 6px rgba(0, 0, 0, 0.1)',
+    willChange: 'transform',
   };
 
   // Normalize product fields so the card works with different backend shapes
@@ -33,6 +32,7 @@ const ProductCard = ({ product, onAddToCart, isOverlay, isLoading }) => {
   const price = product.price || product.retail_price || 99;
   const stock = product.stock || 3;
   const image = product.image_url || product.image || imagen;
+  const color = product.color || 'N/A';
 
   const numericPrice = parseFloat(price) || 0;
   const displayPrice = `$${Math.round(numericPrice)}`;
@@ -56,9 +56,7 @@ const ProductCard = ({ product, onAddToCart, isOverlay, isLoading }) => {
       <div className="relative h-[350px] overflow-hidden">
         {/* Use different ribbon colors for base card vs overlay to visually distinguish them */}
         <div
-          className={`absolute top-0 right-0 text-white text-xl font-bold py-2 px-6 rounded-bl-xl z-10 ${
-            isOverlay ? 'bg-indigo-600' : 'bg-red-600'
-          }`}
+          className={`absolute top-0 right-0 text-white text-xl font-bold py-2 px-6 rounded-bl-xl z-10 bg-red-600`}
         >
           {displayPrice}
         </div>
@@ -83,7 +81,7 @@ const ProductCard = ({ product, onAddToCart, isOverlay, isLoading }) => {
               maskImage: 'linear-gradient(to right, black 90%, transparent 100%)',
             }}
           >
-            {displayName}
+            {displayName + ' ' + color } 
           </h3>
         </a>
 
