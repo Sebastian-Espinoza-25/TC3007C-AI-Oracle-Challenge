@@ -11,6 +11,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 const MIN_REVIEW_LENGTH = 30;
 
 // Visual agent recommendations
+// Using a small helper to centralize the call to the visual-agent endpoint
 const SimilarProduct = async (productId, k = 4) => {
   try {
     const response = await fetch(`${API_URL}/catalog/visual_agent`, {
@@ -19,9 +20,10 @@ const SimilarProduct = async (productId, k = 4) => {
       body: JSON.stringify({ ids: [productId], k }),
     });
     if (!response.ok) {
-      throw new Error("Error fecthing recommendations");
+      throw new Error("Error fetching recommendations");
     }
     const data = await response.json();
+    // Returning an empty array by default avoids null/undefined checks in the caller
     return data.items || [];
   } catch (error) {
     console.error("Recommendation fetch error:", error);
@@ -29,6 +31,7 @@ const SimilarProduct = async (productId, k = 4) => {
   }
 };
 
+// Small fetch helper for a single product
 const fetchProduct = async (productId) => {
   try {
     const response = await fetch(`${API_URL}/catalog/${productId}`);
@@ -41,6 +44,7 @@ const fetchProduct = async (productId) => {
 };
 
 // Ratings list for an article_id
+// Using limit/offset from the start so pagination can be added later without changing callers
 const fetchRatings = async (articleId, limit = 20, offset = 0) => {
   try {
     const params = new URLSearchParams({
@@ -53,6 +57,7 @@ const fetchRatings = async (articleId, limit = 20, offset = 0) => {
     if (!response.ok) {
       throw new Error("Error fetching ratings");
     }
+    // The shape { items, limit, offset, summary } keeps metadata for future UI improvements
     return await response.json(); // { items, limit, offset, summary }
   } catch (err) {
     console.error("Ratings fetch error: ", err);
@@ -65,6 +70,7 @@ const RecommendationCard = ({ product }) => {
 
   return (
     <div
+      // Navigating on card click keeps the UX simple and consistent for all recommendations
       onClick={() => navigate(`/detail/${product.external_article_id}`)}
       className="bg-white p-5 rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition cursor-pointer"
     >
@@ -74,6 +80,7 @@ const RecommendationCard = ({ product }) => {
           alt={product.prod_name}
           className="object-cover w-full h-full"
           onError={(e) => {
+            // Fallback image avoids broken thumbnails when the backend image URL fails
             e.target.onerror = null;
             e.target.src =
               "https://placehold.co/300x300/e5e7eb/6b7280?text=Sin+Imagen";
@@ -93,7 +100,7 @@ const RecommendationCard = ({ product }) => {
 };
 
 const ProductDetail = () => {
-  const { productId } = useParams(); // external_article_id
+  const { productId } = useParams(); // external_article_id from the URL
   const navigate = useNavigate();
   const { addItem } = useCart();
   const { user, token, isLoggedIn } = useAuth();
@@ -120,11 +127,13 @@ const ProductDetail = () => {
   const [selectedSize, setSelectedSize] = useState(null);
 
   useEffect(() => {
+    // Keeping all initial data loading in a single function keeps the effect clean
     const loadData = async () => {
       try {
         setIsLoading(true);
         setError(null);
 
+        // Using Promise.all reduces total load time and ensures all product-related data stays in sync
         const [productData, recommendationsData, ratingsData] =
           await Promise.all([
             fetchProduct(productId),
@@ -139,7 +148,12 @@ const ProductDetail = () => {
         setRatings(ratingsData.items || []);
         setRatingsSummary(ratingsData.summary || null);
 
+        // Resetting quantity and review state here avoids stale data when switching between products
         setQuantity(1);
+        setNewRating(0);
+        setNewReviewText("");
+        setReviewError("");
+        setIsReviewModalOpen(false);
       } catch (err) {
         console.error(err);
         setError("No se pudo cargar el producto.");
@@ -148,10 +162,12 @@ const ProductDetail = () => {
       }
     };
 
+    // Effect depends on productId so navigating to another product reloads everything
     loadData();
   }, [productId]);
 
   if (isLoading) {
+    // Full-screen loading state gives a clear feedback while avoiding partial renders
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
@@ -163,6 +179,7 @@ const ProductDetail = () => {
   }
 
   if (error) {
+    // Dedicated error view so user can easily go back and recover from failures
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-red-50 p-6">
         <p className="text-xl font-bold text-red-700 mb-2">Error</p>
@@ -179,43 +196,47 @@ const ProductDetail = () => {
 
   if (!product) return null;
 
+  // Using Intl.NumberFormat keeps prices consistent with locale/currency rules
   const formattedPrice = new Intl.NumberFormat("es-MX", {
     style: "currency",
     currency: "MXN",
     minimumFractionDigits: 2,
   }).format(product.price);
 
-  const isAvailable = product.stock > 0;
+  // Manejo robusto de stock
+  const stock = Number(product.stock ?? 0);
+  const isAvailable = stock > 0;
   const stockMessage = isAvailable
-    ? `En stock: ${product.stock} unidades`
+    ? `En stock: ${stock} unidades`
     : "Agotado";
 
   const handleDecrease = () => {
+    // Clamping to 1 avoids invalid quantities like 0 or negative numbers
     setQuantity((prev) => Math.max(1, prev - 1));
   };
 
   const handleIncrease = () => {
     if (!isAvailable) return;
-    setQuantity((prev) => {
-      if (product.stock) {
-        return Math.min(product.stock, prev + 1);
-      }
-      return prev + 1;
-    });
+    // Clamping to stock prevents adding more items than available inventory
+    setQuantity((prev) => Math.min(stock, prev + 1));
   };
 
   const handleAddToCart = () => {
     if (!isAvailable) return;
 
+    // Keeping cart payload small and backend-friendly: only id and qty
+    // onUnauthenticated callback centralizes login redirection logic inside CartContext
     addItem({
       productId: product.external_article_id,
       qty: quantity,
       onUnauthenticated: () => {
+        // Delay gives time to show any feedback (toasts) before redirecting
         setTimeout(() => navigate("/auth/login"), 3000);
       },
     });
   };
 
+  // Reusable star renderer for both summary and individual ratings
   const renderStars = (value) => {
     if (value === null || value === undefined) return null;
     const rounded = Math.round(value);
@@ -236,21 +257,31 @@ const ProductDetail = () => {
   };
 
   const reloadRatings = async () => {
+    // Using the product external id ensures ratings always match the currently viewed item
     const data = await fetchRatings(product.external_article_id, 20, 0);
     setRatings(data.items || []);
     setRatingsSummary(data.summary || null);
   };
 
-  const userId = user?.id ?? user?.user_id;
+  // Supporting both id and user_id keeps compatibility with different backend payloads
+  const userId = user?.id ?? user?.user_id ?? null;
+
+  // Precomputing this flag simplifies conditions across the component
   const hasUserReview =
-    isLoggedIn && userId && ratings.some((r) => r.user_id === userId);
+    Boolean(
+      isLoggedIn &&
+        userId != null &&
+        ratings.some((r) => r.user_id === userId)
+    );
 
   const handleOpenReviewModal = () => {
     if (!isLoggedIn) {
+      // Direct navigation to login keeps the flow simple for unauthenticated users
       navigate("/auth/login");
       return;
     }
     if (hasUserReview) {
+      // Informing user that only one review per product is allowed avoids extra requests
       toast.info("Ya has enviado una reseña para este producto.");
       return;
     }
@@ -259,6 +290,7 @@ const ProductDetail = () => {
   };
 
   const handleCloseReviewModal = () => {
+    // Blocking close while submitting avoids accidental loss of the form
     if (submittingReview) return;
     setReviewError("");
     setIsReviewModalOpen(false);
@@ -273,6 +305,7 @@ const ProductDetail = () => {
       return;
     }
 
+    // Enforcing that a rating is selected before sending the request saves a failed backend call
     if (!newRating) {
       setReviewError("Selecciona una calificación de 1 a 5 estrellas.");
       return;
@@ -284,6 +317,7 @@ const ProductDetail = () => {
       return;
     }
 
+    // Minimum length keeps reviews meaningful and filters out low-effort spam
     if (trimmed.length < MIN_REVIEW_LENGTH) {
       setReviewError(
         `Tu reseña debe tener al menos ${MIN_REVIEW_LENGTH} caracteres.`
@@ -308,6 +342,7 @@ const ProductDetail = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          // Conditionally attaching Authorization avoids sending an empty header
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
@@ -319,14 +354,17 @@ const ProductDetail = () => {
       });
 
       if (!res.ok) {
+        // Trying to parse the error body gives more specific feedback when available
         const data = await res.json().catch(() => null);
         throw new Error(data?.error || "No se pudo enviar la reseña.");
       }
 
       toast.success("¡Gracias por tu reseña! 😄");
 
+      // Reloading ratings after a successful submit keeps the list in sync without reloading the whole page
       await reloadRatings();
 
+      // Resetting form state here avoids old values appearing if the user opens the modal again
       setNewRating(0);
       setNewReviewText("");
       setIsReviewModalOpen(false);
@@ -351,6 +389,7 @@ const ProductDetail = () => {
                 alt={product.prod_name}
                 className="w-full h-full object-contain p-6"
                 onError={(e) => {
+                  // Shared placeholder for main product image keeps layout stable even with broken URLs
                   e.target.onerror = null;
                   e.target.src =
                     "https://placehold.co/600x600/e5e7eb/6b7280?text=Sin+Imagen";
@@ -400,6 +439,7 @@ const ProductDetail = () => {
             </div>
 
             {/* Sizes */}
+            {/* Sizes are optional UI-only here, not yet tied to the cart payload */}
             <div className="mb-8">
               <p className="text-dark-500 font-medium mb-2">
                 Selecciona tu talla
@@ -457,7 +497,7 @@ const ProductDetail = () => {
                     type="button"
                     onClick={handleIncrease}
                     className="px-3 py-1 text-lg font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40"
-                    disabled={!isAvailable || quantity >= product.stock}
+                    disabled={!isAvailable || quantity >= stock}
                   >
                     +
                   </button>
@@ -465,7 +505,7 @@ const ProductDetail = () => {
 
                 {isAvailable && (
                   <span className="text-xs text-gray-500">
-                    Máx: {product.stock}
+                    Máx: {stock}
                   </span>
                 )}
               </div>
@@ -515,7 +555,7 @@ const ProductDetail = () => {
               <h2 className="text-2xl font-semibold text-dark-500">
                 Opiniones de otros clientes
               </h2>
-              {ratingsSummary && (
+              {ratingsSummary?.avg_rating != null && (
                 <div className="flex items-center gap-3 mt-2">
                   {renderStars(ratingsSummary.avg_rating)}
                   <span className="text-sm text-dark-400">
@@ -585,6 +625,7 @@ const ProductDetail = () => {
       </div>
 
       {/* Review Modal using shared Modal component */}
+      {/* Using the shared Modal component keeps styles and behavior consistent across the app */}
       <Modal
         open={isReviewModalOpen}
         onClose={handleCloseReviewModal}
