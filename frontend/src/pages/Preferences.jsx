@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import CustomButton from "../components/UI/CustomButton";
-
+import { TbGenderFemale, TbGenderMale } from "react-icons/tb";
+import { PiGenderNonbinary } from "react-icons/pi";
 const API_URL = import.meta.env.VITE_API_URL;
 
 //Gender-based categories (using exact section_name values)
@@ -242,12 +243,43 @@ const PreferenceQuiz = () => {
           </h2>
 
           <div className="flex flex-col gap-4">
-            <CustomButton text="Mujer" onClick={() => startQuiz("mujer")} style="secondary" extraStyles="w-full py-4 text-xl" />
+            <CustomButton 
+              text={
+                <>
+                  <TbGenderFemale size={35} className="inline-block mr-2" />
+                  Mujer
+                </>
+              }
+              onClick={() => startQuiz("mujer")}
+              style="secondary"
+              extraStyles="w-full py-4 text-xl"
+            />
 
-            <CustomButton text="Hombre" onClick={() => startQuiz("hombre")} style="secondary" extraStyles="w-full py-4 text-xl" />
+            <CustomButton 
+              text={
+                <>
+                  <TbGenderMale size={35} className="inline-block mr-2" />
+                  Hombre
+                </>
+              }
+              onClick={() => startQuiz("hombre")}
+              style="secondary"
+              extraStyles="w-full py-4 text-xl"
+            />
 
-            <CustomButton text="No Binario" onClick={() => startQuiz("nobinario")} style="secondary" extraStyles="w-full py-4 text-xl" />
+            <CustomButton 
+              text={
+                <>
+                  <PiGenderNonbinary size={35} className="inline-block mr-2" />
+                  No binario
+                </>
+              }
+              onClick={() => startQuiz("nobinario")}
+              style="secondary"
+              extraStyles="w-full py-4 text-xl"
+            />
 
+            
             <CustomButton text="Prefiero no decirlo" onClick={() => startQuiz("notsay")} style="secondary" extraStyles="w-full py-4 text-xl" />
           </div>
         </div>

@@ -102,7 +102,7 @@ const ProductCard = ({ product, onAddToCart, isOverlay, isLoading }) => {
           <CustomButton
             text={isLoading ? 'Procesando...' : buttonText}
             disabled={isLoading}
-            style={'normal'}
+            style={'secondary'}
             extraStyles={`
                   w-full text-center py-4 text-xl text-white rounded-lg transition duration-200 
                   ${
