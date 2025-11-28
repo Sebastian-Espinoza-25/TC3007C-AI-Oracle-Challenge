@@ -1,11 +1,13 @@
+# app/routes/ideator_agent_chat_routes.py
+
 from flask import Blueprint, request, jsonify
 from langchain_community.chat_models import ChatOCIGenAI
 from langchain_core.messages import HumanMessage
 
 from app.services.ideator_vision_service import describe_image_with_oci
+from app.services.ideator_text_service import describe_text_to_product_json
 from app.services.ideator_recommender_services import (
     get_recommendations_from_json,
-    cluster_model,
 )
 
 import json
@@ -58,12 +60,12 @@ def ideator_chat():
         vision_json = describe_image_with_oci(image_bytes, text)
         rec_ids = get_recommendations_from_json(vision_json)
 
+        # 🔥 FIX: return estaba mal cerrado, ya corregido
         return jsonify({
             "answer": "Entendido. Analicé tu imagen y encontré algunas opciones que podrían gustarte.",
             "recommendations": rec_ids,
             "vision": vision_json
-    }), 200
-
+        }), 200
 
     # ======================================================
     # 2) Texto → clasificar intención (chat vs buscar)
@@ -84,21 +86,23 @@ buscar → si quiere productos, sugerencias o moda
     # 3) Intención → recomendar productos
     # ======================================================
     if intent == "buscar":
-        df = cluster_model.recommend_from_text(text, k=10)
-        ids = df["article_id"].tolist()
+        json_payload = describe_text_to_product_json(text)
+        print("🔍 JSON Payload for recommendations:", json_payload)
+        ids = get_recommendations_from_json(json_payload)
+
 
         return jsonify({
             "answer": "Aquí tienes algunas opciones que podrían interesarte:",
-            "recommendations": ids
+            "recommendations": ids,
+            "vision": json_payload
         }), 200
 
     # ======================================================
     # 4) Intención → conversación natural
     # ======================================================
     chat_prompt = f"""
-Eres ATELLIER, un asistente amable para e-commerce.
+Eres ATELLIER, un asistente para e-commerce.
 
-- amable, natural y breve
 - no repites lo que dijo el usuario
 - tono ligero, fashion-advisor
 - si el usuario saluda → saludas

@@ -37,3 +37,13 @@ def get_recommendations_from_json(payload: dict, k: int = 10, dentro_cluster: bo
     )
 
     return recommended_ids
+
+def get_recommendations_from_text(text: str, k: int = 10) -> list:
+    """
+    Recibe texto libre del usuario y regresa IDs recomendados.
+    """
+    try:
+        df = cluster_model.recommend_from_text(text, k=k)
+        return df["article_id"].tolist()
+    except Exception as e:
+        raise RuntimeError(f"Error generating recommendations from text: {e}")
