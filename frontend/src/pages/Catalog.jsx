@@ -41,7 +41,7 @@ const Catalog = () => {
         setIsLoading(true);
 
         const url = q
-          ? `${API_URL}&search=${encodeURIComponent(q)}`
+          ? `${API_URL}&q=${encodeURIComponent(q)}`
           : API_URL;
 
         const response = await fetch(url);
