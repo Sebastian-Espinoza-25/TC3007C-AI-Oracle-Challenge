@@ -301,3 +301,56 @@ def update_image_url(pool, external_id: str, url: str | None):
             {"url": url, "eid": external_id}
         )
         conn.commit()
+
+def list_filter_options(pool):
+    sql = """
+        SELECT
+            DISTINCT INITCAP(LOWER(TRIM(product_type_name))) AS product_type_name,
+            INITCAP(LOWER(TRIM(department_name))) AS department_name,
+            INITCAP(LOWER(TRIM(index_group_name))) AS index_group_name,
+            INITCAP(LOWER(TRIM(section_name))) AS section_name,
+            INITCAP(LOWER(TRIM(product_group_name))) AS product_group_name,
+            INITCAP(LOWER(TRIM(garment_group_name))) AS garment_group_name,
+            INITCAP(LOWER(TRIM(perceived_colour_master_name))) AS colour_name
+        FROM catalog
+    """
+
+    with pool.acquire() as conn, conn.cursor() as cur:
+        cur.execute(sql)
+
+        product_types = set()
+        departments = set()
+        index_groups = set()
+        sections = set()
+        product_groups = set()
+        garment_groups = set()
+        colours = set()
+
+        for row in cur.fetchall():
+            (
+                pt,
+                dep,
+                ig,
+                sec,
+                pg,
+                gg,
+                col
+            ) = row
+
+            if pt: product_types.add(pt)
+            if dep: departments.add(dep)
+            if ig: index_groups.add(ig)
+            if sec: sections.add(sec)
+            if pg: product_groups.add(pg)
+            if gg: garment_groups.add(gg)
+            if col: colours.add(col)
+
+    return {
+        "product_types": sorted(product_types),
+        "departments": sorted(departments),
+        "index_groups": sorted(index_groups),
+        "sections": sorted(sections),
+        "product_groups": sorted(product_groups),
+        "garment_groups": sorted(garment_groups),
+        "colours": sorted(colours),
+    }
