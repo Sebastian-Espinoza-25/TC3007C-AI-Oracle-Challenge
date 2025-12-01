@@ -20,7 +20,7 @@ def send_email(recipient: str, subject: str, html_body: str):
    """Generic helper to send HTML emails via SMTP."""
    try:
        msg = MIMEMultipart("alternative")
-       msg["From"] = f"SULOMA <{SMTP_USER}>"
+       msg["From"] = f"ALLURE TEAM <{SMTP_USER}>"
        msg["To"] = recipient
        msg["Subject"] = subject
        msg.attach(MIMEText(html_body, "html"))

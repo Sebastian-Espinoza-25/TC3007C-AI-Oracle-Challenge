@@ -195,3 +195,8 @@ def refresh_images():
         "details": result
     }), 200
 
+@catalog_bp.get("/filters")
+def get_filter_options():
+    pool = current_app.config["DB_POOL"]
+    options = svc.list_filter_options(pool)
+    return jsonify(options)

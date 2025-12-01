@@ -1,35 +1,61 @@
-# app/services/ideator_agent/ideator_recommender_service.py
-
+import os
 import warnings
+from threading import Lock
+from typing import List
+
 from sklearn.exceptions import InconsistentVersionWarning
 warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
 
 from app.services.ideator_agent.catalog_cluster_recommender import ClusterRecommender
 
-MODEL_PATH = "app/services/ideator_agent/agente_ideador_cluster_with_weights.pkl"
+# Load model path from environment, fallback for local dev
+_MODEL_PATH = os.getenv(
+    "IDEATOR_MODEL_PATH",
+    "app/services/ideator_agent/agente_ideador_cluster_with_weights.pkl"
+)
 
-# Modelo cargado una sola vez
-try:
-    cluster_model = ClusterRecommender.load(MODEL_PATH)
-except Exception as e:
-    raise RuntimeError(
-        f"Error loading cluster model from {MODEL_PATH}: {e}"
-    )
+# Lazy-loaded model
+_cluster_model = None
+_model_lock = Lock()
+
+# Default weights
 default_fw = {
-                "description": 15.0,
-                "product_type_name": 2.0,
-                "product_group_name": 1.0,
-                "graphical_appearance_name": 1.0,
-                "colour_group_name": 0.95,
-                "index_group_name": 10.0,
-        }
+    "description": 15.0,
+    "product_type_name": 2.0,
+    "product_group_name": 1.0,
+    "graphical_appearance_name": 1.0,
+    "colour_group_name": 0.95,
+    "index_group_name": 10.0,
+}
+
+
+def _get_cluster_model() -> ClusterRecommender:
+    """
+    Loads the model only once, cached in memory (lazy load).
+    """
+    global _cluster_model
+
+    if _cluster_model is None:
+        with _model_lock:
+            if _cluster_model is None:
+                try:
+                    _cluster_model = ClusterRecommender.load(_MODEL_PATH)
+                except Exception as e:
+                    raise RuntimeError(
+                        f"Error loading cluster model from {_MODEL_PATH}: {e}"
+                    )
+
+    return _cluster_model
+
 
 def get_recommendations_from_json(payload: dict, k: int = 10, dentro_cluster: bool = False) -> list:
     """
     Recibe el JSON del Vision Agent y regresa IDs recomendados.
     """
+    cluster_model = _get_cluster_model()
 
-    recommended_ids = cluster_model.recommend_from_payload_ids(field_weights=default_fw,
+    recommended_ids = cluster_model.recommend_from_payload_ids(
+        field_weights=default_fw,
         payload=payload,
         k=k,
         dentro_cluster=False,
@@ -37,3 +63,16 @@ def get_recommendations_from_json(payload: dict, k: int = 10, dentro_cluster: bo
     )
 
     return recommended_ids
+
+
+def get_recommendations_from_text(text: str, k: int = 10) -> list:
+    """
+    Recibe texto libre del usuario y regresa IDs recomendados.
+    """
+    cluster_model = _get_cluster_model()
+
+    try:
+        df = cluster_model.recommend_from_text(text, k=k)
+        return df["article_id"].tolist()
+    except Exception as e:
+        raise RuntimeError(f"Error generating recommendations from text: {e}")
