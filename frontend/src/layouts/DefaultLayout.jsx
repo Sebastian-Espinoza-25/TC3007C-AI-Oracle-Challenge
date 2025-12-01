@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import {
   DndContext,
@@ -19,6 +19,8 @@ import { useAuth } from "../contexts/AuthContext";
 
 const HIDDEN_SIDEBAR_ROUTES = ['/auth/signup', '/auth/login', '/cart'];
 
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+
 const DefaultLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [droppedProduct, setDroppedProduct] = useState(null);
@@ -29,6 +31,11 @@ const DefaultLayout = () => {
 
   const location = useLocation();
   const { user, isLoggedIn } = useAuth();
+
+  // Caché en memoria: { [filtersKey]: { items: [...], ts: number, total?: number } }
+  const cacheRef = useRef({});
+  // Últimos filtros usados para evitar refetch inmediato si no cambia nada
+  const lastFiltersKeyRef = useRef(null);
 
   const normalizeProfile = (profileObj) => {
     if (!profileObj || typeof profileObj !== "object") return [];
@@ -99,13 +106,44 @@ const DefaultLayout = () => {
     fetchUserPreferences();
   }, [isLoggedIn, user]);
 
-  /* ----------------------------- FETCH PRODUCTS ------------------------------------ */
+  /* ----------------------------- FETCH PRODUCTS with CACHE ------------------------------------ */
   const fetchProducts = async (filters) => {
     try {
       setIsLoading(true);
 
+      // Normalizar filtros y construir key consistente
+      const normalizedFilters = {};
+      Object.keys(filters || {}).sort().forEach((k) => {
+        const v = filters[k];
+        if (v !== undefined && v !== null && v !== "") normalizedFilters[k] = v;
+      });
+
+      const filtersKey = JSON.stringify(normalizedFilters);
+
+      // Si los filtros son exactamente los mismos que los últimos usados y ya hay datos, no refetch (protección)
+      if (lastFiltersKeyRef.current === filtersKey && cacheRef.current[filtersKey]) {
+        const cached = cacheRef.current[filtersKey];
+        // Si cache aún válido, úsala
+        if (Date.now() - cached.ts < CACHE_TTL_MS) {
+          setFeaturedProducts(cached.items || []);
+          setIsLoading(false);
+          return;
+        }
+        // Si está expirado, continuamos y haremos fetch
+      }
+
+      // Revisar caché antes de hacer fetch
+      const cachedEntry = cacheRef.current[filtersKey];
+      if (cachedEntry && (Date.now() - cachedEntry.ts) < CACHE_TTL_MS) {
+        setFeaturedProducts(cachedEntry.items || []);
+        lastFiltersKeyRef.current = filtersKey;
+        setIsLoading(false);
+        return;
+      }
+
+      // Construir params
       const params = new URLSearchParams();
-      Object.entries(filters).forEach(([key, val]) => {
+      Object.entries(normalizedFilters).forEach(([key, val]) => {
         if (val) params.append(key, val);
       });
 
@@ -115,10 +153,16 @@ const DefaultLayout = () => {
 
       const data = await response.json();
 
-      console.log("DATA FROM BACKEND:", data);
+      // Guardar en cache (aunque items vacíos, guardamos la respuesta)
+      cacheRef.current[filtersKey] = {
+        items: data.items || [],
+        total: data.total || 0,
+        ts: Date.now(),
+      };
 
-      /** 🔥 AQUI ESTA EL FIX CORRECTO 🔥 **/
+      // Actualizar estado
       setFeaturedProducts(data.items || []);
+      lastFiltersKeyRef.current = filtersKey;
 
     } catch (err) {
       console.error("Error loading recommended products:", err);

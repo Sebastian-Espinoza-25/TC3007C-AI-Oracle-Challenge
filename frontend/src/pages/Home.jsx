@@ -1,74 +1,136 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import ProductCard from "../components/UI/ProductCard";
 import heroBannerImage from "../assets/banner.jpg";
 import { useCart } from "../contexts/CartContext";
 import { useNavigate } from "react-router-dom";
 import Loader from "../components/UI/Loader";
+import Pagination from "../components/UI/Pagination";
+
+const LIMIT = 20;
 
 const Home = () => {
   const {
     isSidebarOpen,
-    featuredProducts,
-    isLoading,
+    userPreferences,
+    isLoading: loadingPreferences,
   } = useOutletContext();
 
   const { addItem } = useCart();
   const navigate = useNavigate();
 
-  // Track per-product loading with a Set to avoid race conditions and allow O(1) lookups
+  const [products, setProducts] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [loadingProducts, setLoadingProducts] = useState(new Set());
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Keep sidebar width in a constant so layout changes are centralized and easy to tweak
+  // Detectar si está logueado
+  const isLoggedIn = !!localStorage.getItem("token");
+
   const sidebarWidthClass = "md:mr-96";
-
-  // Build main content classes based on sidebar state so the grid shifts without duplicating markup
   const mainContentClasses = `
         w-full transition-all duration-300 ease-in-out
         ${isSidebarOpen ? sidebarWidthClass : ""}
     `;
-
-  // Force 4 columns on large screens in both states so the number of cards stays stable when the sidebar opens
   const productGridClasses = `
         grid grid-cols-1 sm:grid-cols-2 gap-4
         ${isSidebarOpen ? "lg:grid-cols-4" : "lg:grid-cols-4"}
     `;
 
-  if (isLoading) {
-    return (
-      <div className="text-center mt-20">
-        <Loader message="Estamos preparando algo asombroso..." />
-      </div>
-    );
-  }
+  /* ------------------------------------------------------
+     FETCH de productos con paginación
+     Se adapta según login + preferencias
+  ------------------------------------------------------ */
+  const fetchPageProducts = async () => {
+    setIsLoading(true);
 
-  if (featuredProducts.length === 0 && !isLoading) {
-    return (
-      <div className={"text-center text-2xl mt-20"}>
-        <p>No se encontraron productos.</p>
-      </div>
-    );
-  }
+    let params = new URLSearchParams({
+      limit: LIMIT,
+      offset: (page - 1) * LIMIT,
+    });
 
+    // -------------------------
+    // SI ESTÁ LOGUEADO Y TIENE PREFERENCIAS → USAR FILTROS
+    // -------------------------
+    const hasPreferences =
+      isLoggedIn && Array.isArray(userPreferences) && userPreferences.length > 0;
+
+    if (hasPreferences) {
+      const filters = userPreferences.reduce((acc, pref) => {
+        const map = {
+          COLOUR: "colour",
+          DEPARTMENT: "department",
+          GARMENT_GROUP: "garment_group",
+          PRODUCT_GROUP: "product_group",
+          SECTION: "section_name",
+        };
+        if (map[pref.category]) {
+          acc[map[pref.category]] = pref.key;
+        }
+        return acc;
+      }, {});
+
+      Object.entries(filters).forEach(([k, v]) => {
+        params.append(k, v);
+      });
+    }
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/catalog?${params.toString()}`
+      );
+
+      const data = await response.json();
+
+      setProducts(data.items || []);
+      setTotalPages(Math.ceil((data.total || 1) / LIMIT));
+
+    } catch (error) {
+      console.error("Error fetching paginated products:", error);
+      setProducts([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /* ------------------------------------------------------
+     Cuando cambian preferencias → Reiniciar a página 1
+     PERO SOLO SI ESTÁ LOGUEADO
+  ------------------------------------------------------ */
+  useEffect(() => {
+    if (!isLoggedIn) return; // no hacer nada si no está logueado
+
+    if (userPreferences.length) {
+      setPage(1);
+      fetchPageProducts();
+    }
+  }, [userPreferences]);
+
+  /* ------------------------------------------------------
+     Cuando cambia la página → recargar
+  ------------------------------------------------------ */
+  useEffect(() => {
+    fetchPageProducts();
+  }, [page]);
+
+  /* ------------------------------------------------------
+     Agregar al carrito
+  ------------------------------------------------------ */
   const handleAddToCart = async (product) => {
     const id = product.id;
 
-    // Avoid double-clicking the same product while a previous add-to-cart request is still pending
     if (loadingProducts.has(id)) return;
 
-    // Clone the Set before mutating to keep React state updates predictable
     setLoadingProducts((prev) => new Set(prev).add(id));
 
     try {
       await addItem({
         productId: id,
         qty: 1,
-        // Delay redirect so the user has time to read the toast or any feedback shown
-        onUnauthenticated: () =>
-          setTimeout(() => navigate("/auth/login"), 5000),
+        onUnauthenticated: () => setTimeout(() => navigate("/auth/login"), 5000),
       });
     } finally {
-      // Remove the product from the loading Set using a fresh Set instance to trigger a re-render
       setLoadingProducts((prev) => {
         const updated = new Set(prev);
         updated.delete(id);
@@ -77,10 +139,39 @@ const Home = () => {
     }
   };
 
+  const handleTryAssistant = () => {
+    if (!isLoggedIn) {
+      navigate("/auth/login");
+      return;
+    }
+
+    navigate("/atelier");
+  };
+
+  /* ------------------------------------------------------
+     UI Render
+  ------------------------------------------------------ */
+
+  if (loadingPreferences || isLoading) {
+    return (
+      <div className="text-center mt-20">
+        <Loader message="Estamos preparando algo asombroso..." />
+      </div>
+    );
+  }
+
+  if (products.length === 0) {
+    return (
+      <div className={"text-center text-2xl mt-20"}>
+        <p>No se encontraron productos.</p>
+      </div>
+    );
+  }
+
   return (
     <div className={mainContentClasses}>
-      {/* Use a big hero banner to set the main visual tone of the homepage */}
-      <section className="mb-12 mt-8">
+      {/* Banner principal */}
+      <section className="mb-12 mt-10">
         <div
           className="relative h-[400px] bg-gray-700 rounded-xl overflow-hidden"
           style={{ backgroundImage: `url(${heroBannerImage})`, backgroundSize: "cover" }}
@@ -93,7 +184,7 @@ const Home = () => {
             <p className="text-lg mb-6">
               Descubre las últimas tendencias y clásicos atemporales.
             </p>
-            <a href="/shop">
+            <a href="/catalog">
               <button className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200">
                 Explorar Ahora
               </button>
@@ -102,7 +193,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Use a dedicated banner to tease the AI assistant without mixing it into the main product grid */}
+      {/* Banner IA */}
       <section className="mb-8">
         <div className="bg-indigo-900 text-white p-16 rounded-xl text-center shadow-2xl">
           <h2 className="text-4xl font-extrabold mb-6">
@@ -113,7 +204,7 @@ const Home = () => {
             nota de voz, y obtén recomendaciones personalizadas al instante.
           </p>
           <button
-            onClick={() => console.log("Toggle Sidebar here")}
+            onClick={handleTryAssistant}
             className="bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-12 rounded-lg text-xl transition-colors duration-200"
           >
             Probar Asistente Avanzado
@@ -121,25 +212,25 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Highlight featured products to give users a starting point without needing to filter */}
+      {/* Productos */}
       <section className="mb-16">
         <h2 className="text-center text-4xl font-extrabold mb-8">
           Tus productos preferidos
         </h2>
 
         <div className={productGridClasses}>
-          {featuredProducts.map((product) => (
+          {products.map((product) => (
             <ProductCard
-              key={product.id}
+              key={product.external_article_id}
               product={product}
               onAddToCart={() => handleAddToCart(product)}
               isLoading={loadingProducts.has(product.id)}
             />
           ))}
         </div>
-      </section>
 
-      
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+      </section>
     </div>
   );
 };
