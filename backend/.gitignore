@@ -28,3 +28,7 @@ Wallet_OracleChallenge/
 
 # chroma DB 
 chroma_db/
+
+# new files to ignore
+.env.docker
+.oci/

@@ -6,9 +6,16 @@ import re
 import oci
 
 # ============================================
-# Load OCI config
+# Load OCI config (FIXED for Docker)
 # ============================================
-OCI_CONFIG = oci.config.from_file(os.path.expanduser("~/.oci/config"), "DEFAULT")
+
+# Load values from environment (Docker-friendly)
+OCI_CONFIG_FILE = os.getenv("OCI_CONFIG_FILE", "/backend/.oci/config")
+OCI_PROFILE = os.getenv("OCI_PROFILE", "DEFAULT")
+
+# Load the OCI config using the correct path
+OCI_CONFIG = oci.config.from_file(OCI_CONFIG_FILE, OCI_PROFILE)
+
 COMPARTMENT_ID = os.getenv("OCI_COMPARTMENT_ID")
 ENDPOINT = os.getenv("OCI_GENAI_ENDPOINT")
 
@@ -121,7 +128,6 @@ system_message = oci.generative_ai_inference.models.Message(
     role="SYSTEM",
     content=[oci.generative_ai_inference.models.TextContent(text=SYSTEM_PROMPT)]
 )
-
 
 # ============================================
 # MAIN FUNCTION
