@@ -20,13 +20,13 @@ const Footer = ({ isSidebarOpen }) => {
         <div className="flex flex-col space-y-3">
             <h4 className="text-xl font-extrabold text-black mb-1">{title}</h4>
             {links.map((link, index) => (
-                <a 
+                <p 
                     key={index} 
                     href={link.href} 
                     className="text-base text-gray-700 hover:text-black transition-colors duration-150"
                 >
                     {link.name}
-                </a>
+                </p>
             ))}
         </div>
     );

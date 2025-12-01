@@ -102,24 +102,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Highlight featured products to give users a starting point without needing to filter */}
-      <section className="mb-16">
-        <h2 className="text-center text-4xl font-extrabold mb-8">
-          ¡Conoce nuestros nuevos productos!
-        </h2>
-
-        <div className={productGridClasses}>
-          {featuredProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              onAddToCart={() => handleAddToCart(product)}
-              isLoading={loadingProducts.has(product.id)}
-            />
-          ))}
-        </div>
-      </section>
-
       {/* Use a dedicated banner to tease the AI assistant without mixing it into the main product grid */}
       <section className="mb-8">
         <div className="bg-indigo-900 text-white p-16 rounded-xl text-center shadow-2xl">
@@ -138,6 +120,26 @@ const Home = () => {
           </button>
         </div>
       </section>
+
+      {/* Highlight featured products to give users a starting point without needing to filter */}
+      <section className="mb-16">
+        <h2 className="text-center text-4xl font-extrabold mb-8">
+          Tus productos preferidos
+        </h2>
+
+        <div className={productGridClasses}>
+          {featuredProducts.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              onAddToCart={() => handleAddToCart(product)}
+              isLoading={loadingProducts.has(product.id)}
+            />
+          ))}
+        </div>
+      </section>
+
+      
     </div>
   );
 };
