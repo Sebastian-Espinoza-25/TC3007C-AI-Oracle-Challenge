@@ -210,10 +210,12 @@ function Checkout() {
               <Elements stripe={stripePromise}>
                 <PaymentCheckoutForm
                   total={total}
-                  clearCart={clearCart}
-                  onSuccess={() => navigate("/")}
-                  orderId={orderId}
-                  clientSecret={clientSecret}
+                    clearCart={clearCart}
+                    onSuccess={() => navigate("/")}
+                    orderId={orderId}
+                    clientSecret={clientSecret}
+                    token={token}
+                    apiUrl={API_URL}
                 />
               </Elements>
             )}
@@ -291,6 +293,8 @@ function PaymentCheckoutForm({
   onSuccess,
   orderId,
   clientSecret,
+  token,
+  apiUrl,
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -393,6 +397,32 @@ function PaymentCheckoutForm({
             setSuccessPhase("check");
             setTimeout(() => setCheckDraw(true), 80);
           }, 900);
+
+          // Try to trigger confirmation email from backend (best-effort)
+          try {
+            // If the backend SMTP is configured, request a quick confirmation
+            // using the user's email and the payment intent reference. This
+            // bypasses waiting for the webhook to update the DB.
+            if (apiUrl && token && paymentIntent && paymentIntent.id && email) {
+              fetch(`${apiUrl}/payments/send_quick_confirmation`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                  email,
+                  amount: total,
+                  currency: "MXN",
+                  provider_ref: paymentIntent.id,
+                }),
+              }).catch((e) => {
+                console.warn("Failed to request quick confirmation email:", e);
+              });
+            }
+          } catch (e) {
+            console.warn("Error sending quick confirmation request", e);
+          }
 
           // Keep overlay until user action (they will click "Regresar a la página principal")
       } else {
