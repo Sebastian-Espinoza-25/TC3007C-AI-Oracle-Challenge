@@ -294,12 +294,16 @@ function PaymentCheckoutForm({
 }) {
   const stripe = useStripe();
   const elements = useElements();
+  const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState(null);
   const [message, setMessage] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [cardError, setCardError] = useState("");
+  // successPhase: null | 'spinner' | 'check'
+  const [successPhase, setSuccessPhase] = useState(null);
+  const [checkDraw, setCheckDraw] = useState(false);
 
   // Central flag that indicates when Stripe hooks are not yet ready
   const stripeNotReady = !stripe || !elements;
@@ -377,12 +381,20 @@ function PaymentCheckoutForm({
         return;
       }
 
-      if (paymentIntent && paymentIntent.status === "succeeded") {
-        // Successful payment clears the cart and notifies the user
-        await clearCart();
-        setMessage("Pago realizado con éxito.");
-        toast.success("Pago realizado con éxito.");
-        if (onSuccess) onSuccess();
+        if (paymentIntent && paymentIntent.status === "succeeded") {
+          // Successful payment: DO NOT clear the cart yet (prevents redirect to empty cart)
+          // Show a success overlay with animation instead of navigating immediately
+          setMessage("Pago realizado con éxito.");
+          toast.success("Pago realizado con éxito.");
+          // Start the spinner->check sequence
+          setSuccessPhase("spinner");
+
+          setTimeout(() => {
+            setSuccessPhase("check");
+            setTimeout(() => setCheckDraw(true), 80);
+          }, 900);
+
+          // Keep overlay until user action (they will click "Regresar a la página principal")
       } else {
         setMessage("No se pudo completar el pago. Inténtalo de nuevo.");
       }
@@ -487,6 +499,87 @@ function PaymentCheckoutForm({
           className="mt-2 text-xs text-slate-700"
         >
           {message}
+        </div>
+      )}
+
+      {successPhase && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Solid white backdrop so the checkout page underneath is fully hidden */}
+          <div className="absolute inset-0 bg-white" />
+
+          <div className="relative z-10 flex items-center justify-center">
+            {/* Card modal: white background to hide the payment form underneath */}
+            <div className="w-[420px] max-w-[92vw] rounded-2xl bg-white p-6 shadow-2xl">
+              <div className="flex flex-col items-center gap-4">
+                {/* Spinner phase: green ring spinning */}
+                {successPhase === "spinner" && (
+                  <div className="flex items-center justify-center rounded-full" style={{ width: 160, height: 160 }}>
+                    <style>{`
+                      @keyframes ring-rotate { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                      @keyframes ring-dash { 0% { stroke-dashoffset: 0; } 50% { stroke-dashoffset: 47; } 100% { stroke-dashoffset: 0; } }
+                    `}</style>
+                    <svg viewBox="0 0 50 50" className="h-[140px] w-[140px]" style={{ overflow: 'visible' }}>
+                      <g style={{ transformOrigin: '25px 25px', animation: 'ring-rotate 1s linear infinite' }}>
+                        <circle cx="25" cy="25" r="20" fill="none" stroke="#F0FFF4" strokeWidth="6" />
+                        <circle cx="25" cy="25" r="20" fill="none" stroke="#16A34A" strokeWidth="6" strokeLinecap="round" strokeDasharray="47" strokeDashoffset="0" style={{ strokeDasharray: 47, animation: 'ring-dash 1.2s ease-in-out infinite' }} />
+                      </g>
+                    </svg>
+                  </div>
+                )}
+
+                {/* Check phase: green circle with white check drawing */}
+                {successPhase === "check" && (
+                  <div className="flex items-center justify-center rounded-full" style={{ width: 160, height: 160 }}>
+                    <svg viewBox="0 0 64 64" className="h-[160px] w-[160px] drop-shadow-2xl" aria-hidden>
+                      <circle cx="32" cy="32" r="30" fill="#10B981" />
+                      <path
+                        d="M20 33 L28 41 L45 24"
+                        fill="none"
+                        stroke="#fff"
+                        strokeWidth="4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        style={{
+                          strokeDasharray: 48,
+                          strokeDashoffset: checkDraw ? 0 : 48,
+                          transition: 'stroke-dashoffset 700ms cubic-bezier(.2,.9,.2,1)',
+                        }}
+                      />
+                    </svg>
+                  </div>
+                )}
+
+                <div className="text-center">
+                  <div className="text-xl font-semibold text-slate-900">{successPhase === 'check' ? '¡Pago exitoso!' : 'Procesando pago...'}</div>
+                  <div className="text-sm text-slate-600">{successPhase === 'check' ? 'Gracias por tu compra.' : 'Espera mientras confirmamos tu pago.'}</div>
+                </div>
+
+                {/* Buttons shown after the check phase: user decides when to go back */}
+                {successPhase === 'check' && (
+                  <div className="mt-4 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        // Navigate to home first to avoid Checkout's "cart empty" redirect
+                        navigate("/");
+                        // Then clear the cart in background (no race with Checkout effect)
+                        try {
+                          if (clearCart) await clearCart();
+                        } catch (e) {
+                          // ignore errors clearing cart
+                        }
+                        setSuccessPhase(null);
+                        setCheckDraw(false);
+                      }}
+                      className="rounded-md bg-green-50 px-4 py-2 text-sm font-semibold text-green-700"
+                    >
+                      Regresar a la página principal
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </form>
