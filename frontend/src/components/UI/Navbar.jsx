@@ -52,7 +52,7 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen, featuredProducts }) => {
       <button
         onClick={() => navigate("/atelier")}
         className="
-          flex items-center p-2 rounded-md
+          flex flex-col items-center p-2 rounded-md
           transition-all duration-300 ease-in-out
           text-white font-bold text-xs cursor-pointer
           bg-primary-500 hover:bg-blue-700
@@ -73,7 +73,8 @@ const Navbar = ({ onToggleSidebar, isSidebarOpen, featuredProducts }) => {
       <button
         onClick={() => !isDisabled && onToggleSidebar()}
         className={`
-          flex items-center p-2 rounded-md
+          ${isLoggedIn ? "flex flex-col" : "flex"} 
+          items-center p-2 rounded-md
           transition-all duration-300 ease-in-out
           text-white font-bold text-xs cursor-pointer
           ${

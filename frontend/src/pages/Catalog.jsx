@@ -9,6 +9,9 @@ const BASE_API_URL =
   import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 const LIMIT = 20;
 
+/* -------------------------------------------------------
+   Normalizar productos
+------------------------------------------------------- */
 const normalizeProducts = (items = []) =>
   items.map((item, index) => {
     const priceString = String(item.price ?? "");
@@ -39,10 +42,14 @@ const normalizeProducts = (items = []) =>
     };
   });
 
+/* -------------------------------------------------------
+   Leer filtros desde URL
+------------------------------------------------------- */
 const parseFiltersFromURL = (search) => {
   const sp = new URLSearchParams(search);
 
   return {
+    q: sp.get("q") || "",
     product_type: sp.getAll("product_type"),
     department: sp.get("department") || "",
     garment_group: sp.get("garment_group") || "",
@@ -54,19 +61,29 @@ const parseFiltersFromURL = (search) => {
   };
 };
 
+/* -------------------------------------------------------
+   Construir query para API
+------------------------------------------------------- */
 const buildURLFromFilters = (filters) => {
   const params = new URLSearchParams();
 
   Object.entries(filters).forEach(([key, val]) => {
-    if (!val || val.length === 0) return;
+    if (val === "" || val == null) return;
 
-    if (Array.isArray(val)) val.forEach((v) => params.append(key, v));
-    else params.set(key, val);
+    if (Array.isArray(val)) {
+      if (val.length === 0) return;
+      val.forEach((v) => params.append(key, v));
+    } else {
+      params.set(key, val);
+    }
   });
 
   return params.toString();
 };
 
+/* -------------------------------------------------------
+    CATALOGO PRINCIPAL
+------------------------------------------------------- */
 const Catalog = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -83,17 +100,24 @@ const Catalog = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
 
+  /* Sync URL → filtros */
   useEffect(() => {
     setFilters(parseFiltersFromURL(location.search));
   }, [location.search]);
 
+  /* -------------------------------------------------------
+        Fetch principal
+  ------------------------------------------------------- */
   const fetchProducts = useCallback(async () => {
     try {
       setIsLoading(true);
 
       let url = `${BASE_API_URL}/catalog?limit=${LIMIT}&offset=${offset}`;
       const filterQuery = buildURLFromFilters(filters);
-      if (filterQuery) url += `&${filterQuery}`;
+
+      if (filterQuery) {
+        url += `&${filterQuery}`;
+      }
 
       const res = await fetch(url);
       const data = await res.json();
@@ -114,27 +138,74 @@ const Catalog = () => {
     fetchProducts();
   }, [fetchProducts]);
 
-  /* ------------------------------------------
-     Cambio de filtros → ACTUALIZA URL
-  ------------------------------------------ */
+  /* -------------------------------------------------------
+      Regla 1:
+      Si se usan FILTROS → se borra q
+  ------------------------------------------------------- */
+  const removeQIfFiltersApplied = (obj) => {
+    const { q, ...others } = obj;
+
+    const hasFilters =
+      Object.values({
+        product_type: obj.product_type,
+        department: obj.department,
+        garment_group: obj.garment_group,
+        product_group: obj.product_group,
+        index_group: obj.index_group,
+        section_name: obj.section_name,
+        colour: obj.colour,
+      }).some((v) => (Array.isArray(v) ? v.length > 0 : v !== ""));
+
+    if (hasFilters) return { ...others, q: "" };
+
+    return obj;
+  };
+
+  /* -------------------------------------------------------
+      Regla 2:
+      Si hay q → limpiar todos los filtros
+  ------------------------------------------------------- */
+  const clearFiltersIfQ = (obj) => {
+    if (!obj.q) return obj;
+
+    return {
+      q: obj.q,
+      product_type: [],
+      department: "",
+      garment_group: "",
+      product_group: "",
+      index_group: "",
+      section_name: "",
+      colour: "",
+      sort: obj.sort || "",
+    };
+  };
+
+  /* -------------------------------------------------------
+      Cambio de filtros (UI FilterBar)
+  ------------------------------------------------------- */
   const handleFiltersChange = (newFilters) => {
-    setFilters(newFilters);
+    // aplicar reglas
+    let finalFilters = removeQIfFiltersApplied(newFilters);
+    finalFilters = clearFiltersIfQ(finalFilters);
+
+    setFilters(finalFilters);
 
     const params = new URLSearchParams();
     params.set("page", "1");
 
-    const filterQuery = buildURLFromFilters(newFilters);
-    if (filterQuery) {
-      const extra = new URLSearchParams(filterQuery);
+    const query = buildURLFromFilters(finalFilters);
+    if (query) {
+      const extra = new URLSearchParams(query);
       for (const [k, v] of extra.entries()) params.append(k, v);
     }
 
     navigate(`?${params.toString()}`);
   };
 
-  /* ------------------------------------------
-     Cambio de página → ACTUALIZA URL
-  ------------------------------------------ */
+  /* -------------------------------------------------------
+      Cambio de página
+  ------------------------------------------------------- */
   const handlePageChange = (newPage) => {
     const params = new URLSearchParams(location.search);
     params.set("page", newPage);
@@ -143,8 +214,11 @@ const Catalog = () => {
 
   if (isLoading) return <p className="p-6">Cargando...</p>;
 
+  /* -------------------------------------------------------
+      RENDER
+  ------------------------------------------------------- */
   return (
-    <div className="p-6">
+    <div className="mt-10">
       <FilterBar
         productTypes={filtersData.product_types}
         departments={filtersData.departments}
@@ -171,7 +245,6 @@ const Catalog = () => {
         <p className="text-gray-500 mt-6">No se encontraron coincidencias.</p>
       )}
 
-      {/* PAGINACIÓN EXTERNA */}
       <Pagination
         page={page}
         totalPages={totalPages}

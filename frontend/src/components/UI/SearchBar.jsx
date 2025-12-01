@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { FiX } from "react-icons/fi"; // <- ícono de X
 
 const BASE_API_URL = import.meta.env.VITE_API_URL;
 
@@ -54,7 +55,6 @@ const SearchBar = () => {
       return;
     }
 
-    // Limpia debounce previo
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     debounceRef.current = setTimeout(() => {
@@ -95,15 +95,22 @@ const SearchBar = () => {
   // --- SUBMIT ---
   const handleSubmit = (e) => {
     e.preventDefault();
-
     if (!query.trim()) return;
 
-    // Cerrar antes de navegar
     setShowSuggestions(false);
     setSuggestions([]);
     setActiveIndex(-1);
 
     navigate(`/catalog?q=${encodeURIComponent(query.trim())}`);
+  };
+
+  // --- BORRAR BÚSQUEDA ---
+  const handleClear = () => {
+    setQuery("");
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setActiveIndex(-1);
+    navigate("/catalog"); // limpia q de la URL
   };
 
   // --- TECLADO ---
@@ -121,17 +128,12 @@ const SearchBar = () => {
     }
 
     if (e.key === "Enter") {
-      // 1) Cancela debounce
       if (debounceRef.current) clearTimeout(debounceRef.current);
-
-      // 2) Cancela fetch
       if (controllerRef.current) controllerRef.current.abort();
 
-      // 3) Limpia UI inmediatamente
       setShowSuggestions(false);
       setSuggestions([]);
 
-      // 4) Si hay sugerencia activa, ve al detail
       if (activeIndex >= 0) {
         const item = suggestions[activeIndex];
         const id = item.external_article_id || item.id;
@@ -139,14 +141,12 @@ const SearchBar = () => {
         return;
       }
 
-      // 5) Si no, búsqueda normal
       handleSubmit(e);
     }
   };
 
   return (
     <div className="relative w-full max-w-lg hidden sm:block">
-      {/* INPUT */}
       <form
         onSubmit={handleSubmit}
         className="flex items-center bg-terciary-400 rounded-full px-4 py-2"
@@ -160,9 +160,19 @@ const SearchBar = () => {
           onKeyDown={handleKeyDown}
           onFocus={() => query.trim() && setShowSuggestions(true)}
         />
+
+        {/* BOTÓN LIMPIAR */}
+        {query && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="ml-2 text-gray-500 hover:text-gray-700"
+          >
+            <FiX size={18} />
+          </button>
+        )}
       </form>
 
-      {/* SUGERENCIAS */}
       {showSuggestions && suggestions.length > 0 && (
         <div className="absolute bg-white w-full mt-1 rounded shadow-md z-50 max-h-72 overflow-auto">
           {suggestions.map((product, idx) => (
