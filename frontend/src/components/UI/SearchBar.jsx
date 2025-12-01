@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 
-const BASE_API_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:8080/api";
+const BASE_API_URL = import.meta.env.VITE_API_URL;
 
 // ITEM DE SUGERENCIA
 const SuggestionItem = ({ product, isActive, onSelect }) => {

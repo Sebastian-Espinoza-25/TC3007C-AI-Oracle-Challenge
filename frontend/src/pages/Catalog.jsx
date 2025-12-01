@@ -1,80 +1,229 @@
-import React, { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import React, { useEffect, useState, useCallback } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import ProductCard from "../components/UI/ProductCard";
+import FilterBar from "../components/UI/FilterBar";
+import filtersData from "../Filters.json";
 
-const BASE_API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api/";
-const API_SUFFIX = "/catalog?limit=20&offset=0";
-const API_URL = `${BASE_API_URL}${API_SUFFIX}`;
+const BASE_API_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:8080/api";
+const LIMIT = 20;
 
-const normalizeProducts = (items) =>
+/* ------------------------------------------
+   NORMALIZAR PRODUCTOS
+------------------------------------------ */
+const normalizeProducts = (items = []) =>
   items.map((item, index) => {
-    let priceString = String(item.price);
-    let integerPart = priceString.split(".")[0];
+    const priceString = String(item.price ?? "");
+    const integerPart = priceString.split(".")[0] || "0";
+
+    const fallbackId =
+      item.external_article_id ||
+      item.product_code ||
+      `${item.prod_name || "prod"}-${index}`;
+
+    const hasValidImage =
+      item.image_url &&
+      item.image_url !== "undefined" &&
+      item.image_url !== "";
 
     return {
-      id: item.external_article_id || item.product_code || `fallback-${index}`,
-      external_article_id:
-        item.external_article_id || item.product_code || `fallback-${index}`,
-      name: item.prod_name,
+      id: fallbackId,
+      external_article_id: fallbackId,
+      name: item.prod_name || item.title || `Producto ${index + 1}`,
       price: integerPart,
-      stock: item.stock,
+      stock: item.stock ?? 0,
       color: item.perceived_colour_master_name || "N/A",
-      image:
-        item.image_url ||
-        `https://placehold.co/400x300/F5F5DC/000000/png?text=${item.prod_name
-          .substring(0, 10)
-          .trim()}`,
+      image: hasValidImage
+        ? item.image_url
+        : `https://placehold.co/500x750?text=${encodeURIComponent(
+            (item.prod_name || "Producto").substring(0, 16)
+          )}`,
     };
   });
 
+/* ------------------------------------------
+   PARSE: URL → filters (state)
+------------------------------------------ */
+const parseFiltersFromURL = (search) => {
+  const sp = new URLSearchParams(search);
+
+  return {
+    product_type: sp.getAll("product_type"), // array
+    department: sp.get("department") || "",
+    garment_group: sp.get("garment_group") || "",
+    product_group: sp.get("product_group") || "",
+    index_group: sp.get("index_group") || "",
+    section_name: sp.get("section_name") || "",
+    colour: sp.get("colour") || "",
+    sort: sp.get("sort") || "",
+  };
+};
+
+/* ------------------------------------------
+   BUILD: filters → URL query
+------------------------------------------ */
+const buildURLFromFilters = (filters) => {
+  const params = new URLSearchParams();
+
+  Object.entries(filters).forEach(([key, val]) => {
+    if (!val || val.length === 0) return;
+
+    if (Array.isArray(val)) {
+      val.forEach((v) => params.append(key, v));
+    } else {
+      params.set(key, val);
+    }
+  });
+
+  return params.toString();
+};
+
+/* ==========================================================
+   C A T A L O G   C O M P O N E N T
+========================================================== */
 const Catalog = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+
   const searchParams = new URLSearchParams(location.search);
-  const q = searchParams.get("q") || "";
+  const page = Number(searchParams.get("page")) || 1;
+  const offset = (page - 1) * LIMIT;
+
+  const [filters, setFilters] = useState(() =>
+    parseFiltersFromURL(location.search)
+  );
 
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [totalPages, setTotalPages] = useState(1);
+
+  /* ------------------------------------------
+     Sync URL → filters (cuando cambie la URL)
+  ------------------------------------------ */
+  useEffect(() => {
+    setFilters(parseFiltersFromURL(location.search));
+  }, [location.search]);
+
+  /* ------------------------------------------
+     FETCH productos
+  ------------------------------------------ */
+  const fetchProducts = useCallback(async () => {
+    try {
+      setIsLoading(true);
+
+      let url = `${BASE_API_URL}/catalog?limit=${LIMIT}&offset=${offset}`;
+
+      const filterQuery = buildURLFromFilters(filters);
+      if (filterQuery) url += `&${filterQuery}`;
+
+      const res = await fetch(url);
+      const data = await res.json();
+
+      setProducts(normalizeProducts(data.items || []));
+
+      const totalItems = Number(data.total) || (data.items?.length || 0);
+      setTotalPages(Math.max(1, Math.ceil(totalItems / LIMIT)));
+    } catch (err) {
+      console.error(err);
+      setProducts([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [filters, offset]);
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setIsLoading(true);
-
-        const url = q
-          ? `${API_URL}&q=${encodeURIComponent(q)}`
-          : API_URL;
-
-        const response = await fetch(url);
-        const data = await response.json();
-
-        setProducts(normalizeProducts(data.items || []));
-      } catch (error) {
-        console.error("Error en catalog fetch", error);
-        setProducts([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchProducts();
-  }, [q]);
+  }, [fetchProducts]);
 
+  /* ------------------------------------------
+     Cambio de filtros → ACTUALIZA URL
+  ------------------------------------------ */
+  const handleFiltersChange = (newFilters) => {
+    setFilters(newFilters);
+
+    const params = new URLSearchParams();
+    params.set("page", "1");
+
+    const filterQuery = buildURLFromFilters(newFilters);
+
+    if (filterQuery) {
+      const extra = new URLSearchParams(filterQuery);
+      for (const [k, v] of extra.entries()) params.append(k, v);
+    }
+
+    navigate(`?${params.toString()}`);
+  };
+
+  /* ------------------------------------------
+     UI RENDER
+  ------------------------------------------ */
   if (isLoading) return <p className="p-6">Cargando...</p>;
 
   return (
     <div className="p-6">
-      <h2 className="text-xl font-semibold mb-6">
-        Resultados para: "{q}" — {products.length} encontrados
-      </h2>
+      <FilterBar
+        productTypes={filtersData.product_types}
+        departments={filtersData.departments}
+        garmentGroups={filtersData.garment_groups}
+        productGroups={filtersData.product_groups}
+        indexGroups={filtersData.index_groups}
+        sections={filtersData.sections}
+        colours={filtersData.colours}
+        sortOptions={[
+          { value: "price_asc", label: "Precio: Menor a Mayor" },
+          { value: "price_desc", label: "Precio: Mayor a Menor" },
+        ]}
+        filters={filters}
+        onChangeFilters={handleFiltersChange}
+      />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-6">
         {products.map((p) => (
           <ProductCard key={p.id} product={p} />
         ))}
       </div>
 
+      {/* No resultados */}
       {products.length === 0 && (
-        <p className="text-gray-500 mt-6">No se encontraron coincidencias.</p>
+        <p className="text-gray-500 mt-6">
+          No se encontraron coincidencias.
+        </p>
+      )}
+
+      {/* Paginación */}
+      {totalPages > 1 && (
+        <div className="flex justify-center mt-8 gap-2 flex-wrap">
+          <button
+            disabled={page === 1}
+            onClick={() => navigate(`?page=${page - 1}`)}
+            className="px-3 py-1 border rounded disabled:opacity-40"
+          >
+            «
+          </button>
+
+          {[...Array(totalPages)].map((_, i) => {
+            const n = i + 1;
+            return (
+              <button
+                key={n}
+                onClick={() => navigate(`?page=${n}`)}
+                className={`px-3 py-1 border rounded ${
+                  n === page ? "bg-black text-white" : ""
+                }`}
+              >
+                {n}
+              </button>
+            );
+          })}
+
+          <button
+            disabled={page === totalPages}
+            onClick={() => navigate(`?page=${page + 1}`)}
+            className="px-3 py-1 border rounded disabled:opacity-40"
+          >
+            »
+          </button>
+        </div>
       )}
     </div>
   );
