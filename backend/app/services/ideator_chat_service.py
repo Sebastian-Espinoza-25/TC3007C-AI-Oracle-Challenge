@@ -22,7 +22,11 @@ if not OCI_COMPARTMENT_ID:
 if not OCI_GENAI_IDEATOR_MODEL_ID:
     raise RuntimeError("Missing environment variable: OCI_GENAI_IDEATOR_MODEL_ID")
 
-config = oci.config.from_file("~/.oci/config", "DEFAULT")
+OCI_CONFIG_FILE = os.getenv("OCI_CONFIG_FILE", "/backend/.oci/config")
+OCI_PROFILE = os.getenv("OCI_PROFILE", "DEFAULT")
+
+config = oci.config.from_file(OCI_CONFIG_FILE, OCI_PROFILE)
+
 
 # Memoria en RAM — puedes cambiar luego a Redis
 CHAT_SESSIONS = {}
