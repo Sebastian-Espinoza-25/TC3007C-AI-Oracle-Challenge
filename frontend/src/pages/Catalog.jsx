@@ -2,15 +2,13 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import ProductCard from "../components/UI/ProductCard";
 import FilterBar from "../components/UI/FilterBar";
+import Pagination from "../components/UI/Pagination";
 import filtersData from "../Filters.json";
 
 const BASE_API_URL =
   import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 const LIMIT = 20;
 
-/* ------------------------------------------
-   NORMALIZAR PRODUCTOS
------------------------------------------- */
 const normalizeProducts = (items = []) =>
   items.map((item, index) => {
     const priceString = String(item.price ?? "");
@@ -41,14 +39,11 @@ const normalizeProducts = (items = []) =>
     };
   });
 
-/* ------------------------------------------
-   PARSE: URL → filters (state)
------------------------------------------- */
 const parseFiltersFromURL = (search) => {
   const sp = new URLSearchParams(search);
 
   return {
-    product_type: sp.getAll("product_type"), // array
+    product_type: sp.getAll("product_type"),
     department: sp.get("department") || "",
     garment_group: sp.get("garment_group") || "",
     product_group: sp.get("product_group") || "",
@@ -59,28 +54,19 @@ const parseFiltersFromURL = (search) => {
   };
 };
 
-/* ------------------------------------------
-   BUILD: filters → URL query
------------------------------------------- */
 const buildURLFromFilters = (filters) => {
   const params = new URLSearchParams();
 
   Object.entries(filters).forEach(([key, val]) => {
     if (!val || val.length === 0) return;
 
-    if (Array.isArray(val)) {
-      val.forEach((v) => params.append(key, v));
-    } else {
-      params.set(key, val);
-    }
+    if (Array.isArray(val)) val.forEach((v) => params.append(key, v));
+    else params.set(key, val);
   });
 
   return params.toString();
 };
 
-/* ==========================================================
-   C A T A L O G   C O M P O N E N T
-========================================================== */
 const Catalog = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -97,22 +83,15 @@ const Catalog = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
 
-  /* ------------------------------------------
-     Sync URL → filters (cuando cambie la URL)
-  ------------------------------------------ */
   useEffect(() => {
     setFilters(parseFiltersFromURL(location.search));
   }, [location.search]);
 
-  /* ------------------------------------------
-     FETCH productos
-  ------------------------------------------ */
   const fetchProducts = useCallback(async () => {
     try {
       setIsLoading(true);
 
       let url = `${BASE_API_URL}/catalog?limit=${LIMIT}&offset=${offset}`;
-
       const filterQuery = buildURLFromFilters(filters);
       if (filterQuery) url += `&${filterQuery}`;
 
@@ -145,7 +124,6 @@ const Catalog = () => {
     params.set("page", "1");
 
     const filterQuery = buildURLFromFilters(newFilters);
-
     if (filterQuery) {
       const extra = new URLSearchParams(filterQuery);
       for (const [k, v] of extra.entries()) params.append(k, v);
@@ -155,8 +133,14 @@ const Catalog = () => {
   };
 
   /* ------------------------------------------
-     UI RENDER
+     Cambio de página → ACTUALIZA URL
   ------------------------------------------ */
+  const handlePageChange = (newPage) => {
+    const params = new URLSearchParams(location.search);
+    params.set("page", newPage);
+    navigate(`?${params.toString()}`);
+  };
+
   if (isLoading) return <p className="p-6">Cargando...</p>;
 
   return (
@@ -183,48 +167,16 @@ const Catalog = () => {
         ))}
       </div>
 
-      {/* No resultados */}
       {products.length === 0 && (
-        <p className="text-gray-500 mt-6">
-          No se encontraron coincidencias.
-        </p>
+        <p className="text-gray-500 mt-6">No se encontraron coincidencias.</p>
       )}
 
-      {/* Paginación */}
-      {totalPages > 1 && (
-        <div className="flex justify-center mt-8 gap-2 flex-wrap">
-          <button
-            disabled={page === 1}
-            onClick={() => navigate(`?page=${page - 1}`)}
-            className="px-3 py-1 border rounded disabled:opacity-40"
-          >
-            «
-          </button>
-
-          {[...Array(totalPages)].map((_, i) => {
-            const n = i + 1;
-            return (
-              <button
-                key={n}
-                onClick={() => navigate(`?page=${n}`)}
-                className={`px-3 py-1 border rounded ${
-                  n === page ? "bg-black text-white" : ""
-                }`}
-              >
-                {n}
-              </button>
-            );
-          })}
-
-          <button
-            disabled={page === totalPages}
-            onClick={() => navigate(`?page=${page + 1}`)}
-            className="px-3 py-1 border rounded disabled:opacity-40"
-          >
-            »
-          </button>
-        </div>
-      )}
+      {/* PAGINACIÓN EXTERNA */}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+      />
     </div>
   );
 };
