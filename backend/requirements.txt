@@ -35,3 +35,6 @@ PyYAML==6.0.3
 pydantic==2.12.5
 pydantic-settings==2.12.0
 python-dateutil==2.9.0.post0
+
+# production
+gunicorn==21.2.0

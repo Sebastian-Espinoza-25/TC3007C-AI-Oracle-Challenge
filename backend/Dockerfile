@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-# Container directory
+# Workdir inside container
 WORKDIR /backend
 
 # System dependencies
@@ -8,20 +8,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Requirements file
+# Copy requirements
 COPY requirements.txt .
 
-# Python dependencies
+# Install python deps
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy entire backend
 COPY . .
 
-# Expose port
+# Environment variables
+ENV FLASK_ENV=production
+ENV FLASK_DEBUG=0
+
+# Oracle Wallet and OCI config
+ENV TNS_ADMIN=/backend/Wallet_OracleChallenge
+ENV OCI_CONFIG_FILE=/backend/.oci/config
+ENV OCI_PROFILE=DEFAULT
+
+# Expose backend port
 EXPOSE 5000
 
-# Make sure Oracle Wallet is accessible
-ENV TNS_ADMIN=/backend/Wallet_OracleChallenge
+# Start production server
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "run:app"]
 
-# Start the application
-CMD ["python", "run.py"]
