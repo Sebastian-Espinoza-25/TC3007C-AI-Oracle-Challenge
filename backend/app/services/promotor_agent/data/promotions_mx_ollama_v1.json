@@ -1,727 +1,877 @@
 {
-  "version": "1.0",
+  "version": "2.0",
   "moneda": "MXN",
   "promociones": [
     {
-      "id": "BBVA-5PCT-500",
+      "id": "BBVA-PCT5-500",
       "titulo": "5% BBVA desde $500",
-      "descripcion_cliente": "Paga con tu tarjeta BBVA y obtén 5% de descuento en compras desde $500.",
+      "descripcion_cliente": "Aprovecha 5% pagando con BBVA en compras desde $500.",
       "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
+      "vigencia_fin": "2026-01-31T23:59:59Z",
       "prioridad": 10,
       "condiciones": {
         "minimo_carrito_mxn": 500,
         "metodos_pago": ["card_credit", "card_debit"],
         "bancos": ["BBVA"]
       },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 5
-      }
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 5 }
     },
     {
-      "id": "BBVA-8PCT-900",
+      "id": "BBVA-PCT8-900",
       "titulo": "8% BBVA desde $900",
-      "descripcion_cliente": "Si pagas con BBVA y tu compra es de $900 o más, te damos 8% de descuento.",
+      "descripcion_cliente": "Obtén 8% pagando con BBVA desde $900.",
       "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
+      "vigencia_fin": "2026-01-31T23:59:59Z",
       "prioridad": 12,
       "condiciones": {
         "minimo_carrito_mxn": 900,
         "metodos_pago": ["card_credit", "card_debit"],
         "bancos": ["BBVA"]
       },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 8
-      }
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 8 }
     },
     {
-      "id": "BBVA-3MSI-1200",
-      "titulo": "3 MSI BBVA desde $1,200",
-      "descripcion_cliente": "Paga con tarjeta BBVA y difiere tu compra a 3 meses sin intereses desde $1,200.",
+      "id": "BBVA-PCT10-1800",
+      "titulo": "10% BBVA desde $1800",
+      "descripcion_cliente": "Obtén 10% pagando con BBVA desde $1,800.",
       "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2026-01-15T23:59:59Z",
-      "prioridad": 14,
-      "condiciones": {
-        "minimo_carrito_mxn": 1200,
-        "metodos_pago": ["card_credit"],
-        "bancos": ["BBVA"]
-      },
-      "beneficio": {
-        "tipo": "msi",
-        "meses": 3
-      }
-    },
-    {
-      "id": "BBVA-10PCT-1800",
-      "titulo": "10% BBVA desde $1,800",
-      "descripcion_cliente": "Compra desde $1,800 y paga con BBVA para llevarte 10% de descuento.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
+      "vigencia_fin": "2026-01-31T23:59:59Z",
       "prioridad": 16,
       "condiciones": {
         "minimo_carrito_mxn": 1800,
         "metodos_pago": ["card_credit"],
         "bancos": ["BBVA"]
       },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 10
-      }
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 10 }
     },
     {
-      "id": "BBVA-6MSI-2500",
-      "titulo": "6 MSI BBVA desde $2,500",
-      "descripcion_cliente": "Con BBVA y compras de $2,500 o más te damos 6 meses sin intereses.",
+      "id": "BBVA-MSI3-1200",
+      "titulo": "3 MSI BBVA desde $1,200",
+      "descripcion_cliente": "Difiere a 3 MSI pagando con BBVA desde $1,200.",
       "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2026-01-15T23:59:59Z",
+      "vigencia_fin": "2026-02-15T23:59:59Z",
+      "prioridad": 14,
+      "condiciones": {
+        "minimo_carrito_mxn": 1200,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["BBVA"]
+      },
+      "beneficio": { "tipo": "msi", "meses": 3 }
+    },
+    {
+      "id": "BBVA-MSI6-2500",
+      "titulo": "6 MSI BBVA desde $2,500",
+      "descripcion_cliente": "Obtén 6 MSI pagando con BBVA desde $2,500.",
+      "vigencia_inicio": "2025-10-01T00:00:00Z",
+      "vigencia_fin": "2026-02-15T23:59:59Z",
       "prioridad": 18,
       "condiciones": {
         "minimo_carrito_mxn": 2500,
         "metodos_pago": ["card_credit"],
         "bancos": ["BBVA"]
       },
-      "beneficio": {
-        "tipo": "msi",
-        "meses": 6
-      }
+      "beneficio": { "tipo": "msi", "meses": 6 }
     },
-
     {
-      "id": "SANT-5PCT-500",
+      "id": "BBVA-DF40-400",
+      "titulo": "Descuento BBVA $40 desde $400",
+      "descripcion_cliente": "Ahorra $40 pagando con BBVA desde $400.",
+      "vigencia_inicio": "2025-12-20T00:00:00Z",
+      "vigencia_fin": "2026-04-30T23:59:59Z",
+      "prioridad": 9,
+      "condiciones": {
+        "minimo_carrito_mxn": 400,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["BBVA"]
+      },
+      "beneficio": { "tipo": "descuento_fijo", "valor": 40 }
+    },
+    {
+      "id": "BBVA-DF80-800",
+      "titulo": "Descuento BBVA $80 desde $800",
+      "descripcion_cliente": "Ahorra $80 pagando con BBVA desde $800.",
+      "vigencia_inicio": "2025-12-20T00:00:00Z",
+      "vigencia_fin": "2026-04-30T23:59:59Z",
+      "prioridad": 11,
+      "condiciones": {
+        "minimo_carrito_mxn": 800,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["BBVA"]
+      },
+      "beneficio": { "tipo": "descuento_fijo", "valor": 80 }
+    },
+    {
+      "id": "SANT-PCT5-500",
       "titulo": "5% Santander desde $500",
-      "descripcion_cliente": "Paga con tu tarjeta Santander y recibe 5% de descuento en compras desde $500.",
+      "descripcion_cliente": "Aprovecha 5% pagando con Santander desde $500.",
       "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
+      "vigencia_fin": "2026-01-31T23:59:59Z",
       "prioridad": 10,
       "condiciones": {
         "minimo_carrito_mxn": 500,
         "metodos_pago": ["card_credit", "card_debit"],
         "bancos": ["Santander"]
       },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 5
-      }
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 5 }
     },
     {
-      "id": "SANT-7PCT-850",
+      "id": "SANT-PCT7-850",
       "titulo": "7% Santander desde $850",
-      "descripcion_cliente": "En compras desde $850 pagando con Santander te damos 7% de descuento.",
+      "descripcion_cliente": "Aprovecha 7% con Santander en compras desde $850.",
       "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
+      "vigencia_fin": "2026-01-31T23:59:59Z",
       "prioridad": 12,
       "condiciones": {
         "minimo_carrito_mxn": 850,
         "metodos_pago": ["card_credit", "card_debit"],
         "bancos": ["Santander"]
       },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 7
-      }
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 7 }
     },
     {
-      "id": "SANT-3MSI-1200",
-      "titulo": "3 MSI Santander desde $1,200",
-      "descripcion_cliente": "Difiere a 3 MSI tus compras desde $1,200 pagando con Santander.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2026-01-15T23:59:59Z",
-      "prioridad": 14,
-      "condiciones": {
-        "minimo_carrito_mxn": 1200,
-        "metodos_pago": ["card_credit"],
-        "bancos": ["Santander"]
-      },
-      "beneficio": {
-        "tipo": "msi",
-        "meses": 3
-      }
-    },
-    {
-      "id": "SANT-10PCT-1800",
+      "id": "SANT-PCT10-1800",
       "titulo": "10% Santander desde $1,800",
-      "descripcion_cliente": "Si pagas con Santander y tu compra es de $1,800 o más, te damos 10%.",
+      "descripcion_cliente": "Obtén 10% pagando con Santander desde $1,800.",
       "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
+      "vigencia_fin": "2026-01-31T23:59:59Z",
       "prioridad": 16,
       "condiciones": {
         "minimo_carrito_mxn": 1800,
         "metodos_pago": ["card_credit"],
         "bancos": ["Santander"]
       },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 10
-      }
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 10 }
     },
     {
-      "id": "SANT-6MSI-2500",
-      "titulo": "6 MSI Santander desde $2,500",
-      "descripcion_cliente": "6 meses sin intereses pagando con Santander en compras desde $2,500.",
+      "id": "SANT-MSI3-1200",
+      "titulo": "3 MSI Santander desde $1,200",
+      "descripcion_cliente": "Obtén 3 MSI pagando con Santander desde $1,200.",
       "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2026-01-15T23:59:59Z",
+      "vigencia_fin": "2026-02-01T23:59:59Z",
+      "prioridad": 14,
+      "condiciones": {
+        "minimo_carrito_mxn": 1200,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["Santander"]
+      },
+      "beneficio": { "tipo": "msi", "meses": 3 }
+    },
+    {
+      "id": "SANT-MSI6-2500",
+      "titulo": "6 MSI Santander desde $2,500",
+      "descripcion_cliente": "Difiere a 6 MSI pagando con Santander desde $2,500.",
+      "vigencia_inicio": "2025-10-01T00:00:00Z",
+      "vigencia_fin": "2026-02-01T23:59:59Z",
       "prioridad": 18,
       "condiciones": {
         "minimo_carrito_mxn": 2500,
         "metodos_pago": ["card_credit"],
         "bancos": ["Santander"]
       },
-      "beneficio": {
-        "tipo": "msi",
-        "meses": 6
-      }
+      "beneficio": { "tipo": "msi", "meses": 6 }
     },
-
     {
-      "id": "BANORTE-5PCT-500",
+      "id": "SANT-DF35-500",
+      "titulo": "Descuento Santander $35 desde $500",
+      "descripcion_cliente": "Ahorra $35 pagando con Santander desde $500.",
+      "vigencia_inicio": "2025-12-21T00:00:00Z",
+      "vigencia_fin": "2026-05-20T23:59:59Z",
+      "prioridad": 9,
+      "condiciones": {
+        "minimo_carrito_mxn": 500,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["Santander"]
+      },
+      "beneficio": { "tipo": "descuento_fijo", "valor": 35 }
+    },
+    {
+      "id": "SANT-DF70-1000",
+      "titulo": "Descuento Santander $70 desde $1000",
+      "descripcion_cliente": "Ahorra $70 pagando con Santander desde $1,000.",
+      "vigencia_inicio": "2025-12-21T00:00:00Z",
+      "vigencia_fin": "2026-05-20T23:59:59Z",
+      "prioridad": 11,
+      "condiciones": {
+        "minimo_carrito_mxn": 1000,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["Santander"]
+      },
+      "beneficio": { "tipo": "descuento_fijo", "valor": 70 }
+    },
+    {
+      "id": "SANT-DF120-1800",
+      "titulo": "Descuento Santander $120 desde $1800",
+      "descripcion_cliente": "Ahorra $120 pagando con Santander desde $1,800.",
+      "vigencia_inicio": "2025-12-21T00:00:00Z",
+      "vigencia_fin": "2026-05-20T23:59:59Z",
+      "prioridad": 13,
+      "condiciones": {
+        "minimo_carrito_mxn": 1800,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["Santander"]
+      },
+      "beneficio": { "tipo": "descuento_fijo", "valor": 120 }
+    },
+    {
+      "id": "BAN-PCT5-500",
       "titulo": "5% Banorte desde $500",
-      "descripcion_cliente": "Paga con Banorte y recibe 5% en compras desde $500.",
+      "descripcion_cliente": "Aprovecha 5% pagando con Banorte desde $500.",
       "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
+      "vigencia_fin": "2026-02-01T23:59:59Z",
       "prioridad": 10,
       "condiciones": {
         "minimo_carrito_mxn": 500,
         "metodos_pago": ["card_credit", "card_debit"],
         "bancos": ["Banorte"]
       },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 5
-      }
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 5 }
     },
     {
-      "id": "BANORTE-7PCT-900",
+      "id": "BAN-PCT7-900",
       "titulo": "7% Banorte desde $900",
-      "descripcion_cliente": "Compra desde $900 pagando con Banorte y llévate 7% de descuento.",
+      "descripcion_cliente": "Obtén 7% pagando con Banorte desde $900.",
       "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
+      "vigencia_fin": "2026-02-01T23:59:59Z",
       "prioridad": 12,
       "condiciones": {
         "minimo_carrito_mxn": 900,
         "metodos_pago": ["card_credit", "card_debit"],
         "bancos": ["Banorte"]
       },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 7
-      }
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 7 }
     },
     {
-      "id": "BANORTE-3MSI-1300",
+      "id": "BAN-MSI3-1300",
       "titulo": "3 MSI Banorte desde $1,300",
-      "descripcion_cliente": "Difiere a 3 MSI tus compras desde $1,300 pagando con Banorte.",
+      "descripcion_cliente": "Difiere a 3 MSI pagando con Banorte desde $1,300.",
       "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2026-01-15T23:59:59Z",
+      "vigencia_fin": "2026-02-01T23:59:59Z",
       "prioridad": 14,
       "condiciones": {
         "minimo_carrito_mxn": 1300,
         "metodos_pago": ["card_credit"],
         "bancos": ["Banorte"]
       },
-      "beneficio": {
-        "tipo": "msi",
-        "meses": 3
-      }
+      "beneficio": { "tipo": "msi", "meses": 3 }
     },
     {
-      "id": "BANORTE-10PCT-2000",
-      "titulo": "10% Banorte desde $2,000",
-      "descripcion_cliente": "Paga con Banorte y desde $2,000 te aplicamos 10% de descuento.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
-      "prioridad": 16,
-      "condiciones": {
-        "minimo_carrito_mxn": 2000,
-        "metodos_pago": ["card_credit"],
-        "bancos": ["Banorte"]
-      },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 10
-      }
-    },
-    {
-      "id": "BANORTE-6MSI-2800",
+      "id": "BAN-MSI6-2800",
       "titulo": "6 MSI Banorte desde $2,800",
-      "descripcion_cliente": "Con Banorte y compras desde $2,800 obtienes 6 meses sin intereses.",
+      "descripcion_cliente": "Obtén 6 MSI pagando con Banorte desde $2,800.",
       "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2026-01-15T23:59:59Z",
+      "vigencia_fin": "2026-02-01T23:59:59Z",
       "prioridad": 18,
       "condiciones": {
         "minimo_carrito_mxn": 2800,
         "metodos_pago": ["card_credit"],
         "bancos": ["Banorte"]
       },
-      "beneficio": {
-        "tipo": "msi",
-        "meses": 6
-      }
+      "beneficio": { "tipo": "msi", "meses": 6 }
     },
-
     {
-      "id": "CITI-5PCT-600",
-      "titulo": "5% Citibanamex desde $600",
-      "descripcion_cliente": "Paga con Citibanamex y recibe 5% de descuento desde $600.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
-      "prioridad": 10,
+      "id": "BAN-DF30-600",
+      "titulo": "Descuento Banorte $30 desde $600",
+      "descripcion_cliente": "Ahorra $30 pagando con Banorte desde $600.",
+      "vigencia_inicio": "2025-12-22T00:00:00Z",
+      "vigencia_fin": "2026-04-28T23:59:59Z",
+      "prioridad": 9,
       "condiciones": {
         "minimo_carrito_mxn": 600,
-        "metodos_pago": ["card_credit", "card_debit"],
-        "bancos": ["Citibanamex"]
+        "metodos_pago": ["card_credit"],
+        "bancos": ["Banorte"]
       },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 5
-      }
+      "beneficio": { "tipo": "descuento_fijo", "valor": 30 }
     },
     {
-      "id": "CITI-8PCT-1000",
-      "titulo": "8% Citibanamex desde $1,000",
-      "descripcion_cliente": "En compras desde $1,000 con Citibanamex te damos 8% de descuento.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
+      "id": "BAN-DF75-1200",
+      "titulo": "Descuento Banorte $75 desde $1,200",
+      "descripcion_cliente": "Ahorra $75 pagando con Banorte desde $1,200.",
+      "vigencia_inicio": "2025-12-22T00:00:00Z",
+      "vigencia_fin": "2026-04-28T23:59:59Z",
+      "prioridad": 11,
+      "condiciones": {
+        "minimo_carrito_mxn": 1200,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["Banorte"]
+      },
+      "beneficio": { "tipo": "descuento_fijo", "valor": 75 }
+    },
+    {
+      "id": "BAN-DF140-2000",
+      "titulo": "Descuento Banorte $140 desde $2,000",
+      "descripcion_cliente": "Ahorra $140 pagando con Banorte desde $2,000.",
+      "vigencia_inicio": "2025-12-22T00:00:00Z",
+      "vigencia_fin": "2026-04-28T23:59:59Z",
+      "prioridad": 13,
+      "condiciones": {
+        "minimo_carrito_mxn": 2000,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["Banorte"]
+      },
+      "beneficio": { "tipo": "descuento_fijo", "valor": 140 }
+    },
+    {
+      "id": "CITI-PCT4-400",
+      "titulo": "4% Citibanamex desde $400",
+      "descripcion_cliente": "Aprovecha 4% pagando con Citibanamex desde $400.",
+      "vigencia_inicio": "2025-11-01T00:00:00Z",
+      "vigencia_fin": "2026-03-01T23:59:59Z",
+      "prioridad": 8,
+      "condiciones": {
+        "minimo_carrito_mxn": 400,
+        "metodos_pago": ["card_credit", "card_debit"],
+        "bancos": ["Banamex", "Citibanamex"]
+      },
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 4 }
+    },
+    {
+      "id": "CITI-PCT7-900",
+      "titulo": "7% Citibanamex desde $900",
+      "descripcion_cliente": "Obtén 7% pagando con Citibanamex desde $900.",
+      "vigencia_inicio": "2025-11-01T00:00:00Z",
+      "vigencia_fin": "2026-03-01T23:59:59Z",
+      "prioridad": 12,
+      "condiciones": {
+        "minimo_carrito_mxn": 900,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["Banamex", "Citibanamex"]
+      },
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 7 }
+    },
+    {
+      "id": "CITI-PCT10-2000",
+      "titulo": "10% Citibanamex desde $2,000",
+      "descripcion_cliente": "Obtén 10% pagando con Citibanamex desde $2,000.",
+      "vigencia_inicio": "2025-11-01T00:00:00Z",
+      "vigencia_fin": "2026-03-01T23:59:59Z",
+      "prioridad": 15,
+      "condiciones": {
+        "minimo_carrito_mxn": 2000,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["Banamex", "Citibanamex"]
+      },
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 10 }
+    },
+    {
+      "id": "CITI-MSI3-1500",
+      "titulo": "3 MSI Citibanamex desde $1,500",
+      "descripcion_cliente": "Difiere a 3 MSI con Citibanamex desde $1,500.",
+      "vigencia_inicio": "2025-11-01T00:00:00Z",
+      "vigencia_fin": "2026-03-15T23:59:59Z",
+      "prioridad": 14,
+      "condiciones": {
+        "minimo_carrito_mxn": 1500,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["Banamex", "Citibanamex"]
+      },
+      "beneficio": { "tipo": "msi", "meses": 3 }
+    },
+    {
+      "id": "CITI-MSI6-3200",
+      "titulo": "6 MSI Citibanamex desde $3,200",
+      "descripcion_cliente": "Obtén 6 MSI con Citibanamex desde $3,200.",
+      "vigencia_inicio": "2025-11-01T00:00:00Z",
+      "vigencia_fin": "2026-03-15T23:59:59Z",
+      "prioridad": 18,
+      "condiciones": {
+        "minimo_carrito_mxn": 3200,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["Banamex", "Citibanamex"]
+      },
+      "beneficio": { "tipo": "msi", "meses": 6 }
+    },
+    {
+      "id": "CITI-DF30-700",
+      "titulo": "Descuento Citibanamex $30 desde $700",
+      "descripcion_cliente": "Ahorra $30 pagando con Citibanamex desde $700.",
+      "vigencia_inicio": "2025-12-05T00:00:00Z",
+      "vigencia_fin": "2026-05-10T23:59:59Z",
+      "prioridad": 9,
+      "condiciones": {
+        "minimo_carrito_mxn": 700,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["Banamex", "Citibanamex"]
+      },
+      "beneficio": { "tipo": "descuento_fijo", "valor": 30 }
+    },
+    {
+      "id": "CITI-DF65-1300",
+      "titulo": "Descuento Citibanamex $65 desde $1300",
+      "descripcion_cliente": "Ahorra $65 pagando con Citibanamex desde $1,300.",
+      "vigencia_inicio": "2025-12-05T00:00:00Z",
+      "vigencia_fin": "2026-05-10T23:59:59Z",
+      "prioridad": 11,
+      "condiciones": {
+        "minimo_carrito_mxn": 1300,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["Banamex", "Citibanamex"]
+      },
+      "beneficio": { "tipo": "descuento_fijo", "valor": 65 }
+    },
+    {
+      "id": "CITI-DF120-2000",
+      "titulo": "Descuento Citibanamex $120 desde $2000",
+      "descripcion_cliente": "Ahorra $120 pagando con Citibanamex desde $2,000.",
+      "vigencia_inicio": "2025-12-05T00:00:00Z",
+      "vigencia_fin": "2026-05-10T23:59:59Z",
+      "prioridad": 13,
+      "condiciones": {
+        "minimo_carrito_mxn": 2000,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["Banamex", "Citibanamex"]
+      },
+      "beneficio": { "tipo": "descuento_fijo", "valor": 120 }
+    },
+    {
+      "id": "HSBC-PCT4-450",
+      "titulo": "4% HSBC desde $450",
+      "descripcion_cliente": "Obtén 4% pagando con HSBC desde $450.",
+      "vigencia_inicio": "2025-11-15T00:00:00Z",
+      "vigencia_fin": "2026-02-20T23:59:59Z",
+      "prioridad": 8,
+      "condiciones": {
+        "minimo_carrito_mxn": 450,
+        "metodos_pago": ["card_credit", "card_debit"],
+        "bancos": ["HSBC"]
+      },
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 4 }
+    },
+    {
+      "id": "HSBC-PCT8-1000",
+      "titulo": "8% HSBC desde $1,000",
+      "descripcion_cliente": "Aprovecha 8% pagando con HSBC desde $1,000.",
+      "vigencia_inicio": "2025-11-15T00:00:00Z",
+      "vigencia_fin": "2026-02-20T23:59:59Z",
       "prioridad": 12,
       "condiciones": {
         "minimo_carrito_mxn": 1000,
-        "metodos_pago": ["card_credit", "card_debit"],
-        "bancos": ["Citibanamex"]
-      },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 8
-      }
-    },
-    {
-      "id": "CITI-3MSI-1400",
-      "titulo": "3 MSI Citibanamex desde $1,400",
-      "descripcion_cliente": "Difiere a 3 MSI pagando con Citibanamex en compras desde $1,400.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2026-01-15T23:59:59Z",
-      "prioridad": 14,
-      "condiciones": {
-        "minimo_carrito_mxn": 1400,
         "metodos_pago": ["card_credit"],
-        "bancos": ["Citibanamex"]
+        "bancos": ["HSBC"]
       },
-      "beneficio": {
-        "tipo": "msi",
-        "meses": 3
-      }
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 8 }
     },
     {
-      "id": "CITI-10PCT-2000",
-      "titulo": "10% Citibanamex desde $2,000",
-      "descripcion_cliente": "Paga con Citibanamex, compra desde $2,000 y obtén 10% de descuento.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
+      "id": "HSBC-PCT12-2000",
+      "titulo": "12% HSBC desde $2,000",
+      "descripcion_cliente": "Aprovecha 12% pagando con HSBC desde $2,000.",
+      "vigencia_inicio": "2025-11-15T00:00:00Z",
+      "vigencia_fin": "2026-02-20T23:59:59Z",
       "prioridad": 16,
       "condiciones": {
         "minimo_carrito_mxn": 2000,
         "metodos_pago": ["card_credit"],
-        "bancos": ["Citibanamex"]
+        "bancos": ["HSBC"]
       },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 10
-      }
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 12 }
     },
     {
-      "id": "CITI-12MSI-4000",
-      "titulo": "12 MSI Citibanamex desde $4,000",
-      "descripcion_cliente": "Con Citibanamex y compras de $4,000+ te damos 12 meses sin intereses.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2026-01-15T23:59:59Z",
+      "id": "HSBC-MSI3-1100",
+      "titulo": "3 MSI HSBC desde $1,100",
+      "descripcion_cliente": "Difiere a 3 MSI pagando con HSBC desde $1,100.",
+      "vigencia_inicio": "2025-11-15T00:00:00Z",
+      "vigencia_fin": "2026-03-01T23:59:59Z",
+      "prioridad": 14,
+      "condiciones": {
+        "minimo_carrito_mxn": 1100,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["HSBC"]
+      },
+      "beneficio": { "tipo": "msi", "meses": 3 }
+    },
+    {
+      "id": "HSBC-MSI6-2400",
+      "titulo": "6 MSI HSBC desde $2,400",
+      "descripcion_cliente": "Obtén 6 MSI pagando con HSBC desde $2,400.",
+      "vigencia_inicio": "2025-11-15T00:00:00Z",
+      "vigencia_fin": "2026-03-01T23:59:59Z",
       "prioridad": 18,
       "condiciones": {
-        "minimo_carrito_mxn": 4000,
+        "minimo_carrito_mxn": 2400,
         "metodos_pago": ["card_credit"],
-        "bancos": ["Citibanamex"]
-      },
-      "beneficio": {
-        "tipo": "msi",
-        "meses": 12
-      }
-    },
-
-    {
-      "id": "HSBC-5PCT-500",
-      "titulo": "5% HSBC desde $500",
-      "descripcion_cliente": "Paga con HSBC y obtén 5% de descuento en compras desde $500.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
-      "prioridad": 10,
-      "condiciones": {
-        "minimo_carrito_mxn": 500,
-        "metodos_pago": ["card_credit", "card_debit"],
         "bancos": ["HSBC"]
       },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 5
-      }
+      "beneficio": { "tipo": "msi", "meses": 6 }
     },
     {
-      "id": "HSBC-8PCT-950",
-      "titulo": "8% HSBC desde $950",
-      "descripcion_cliente": "Compras desde $950 con tarjeta HSBC reciben 8% de descuento.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
-      "prioridad": 12,
+      "id": "HSBC-DF25-600",
+      "titulo": "Descuento HSBC $25 desde $600",
+      "descripcion_cliente": "Ahorra $25 pagando con HSBC desde $600.",
+      "vigencia_inicio": "2025-12-10T00:00:00Z",
+      "vigencia_fin": "2026-05-10T23:59:59Z",
+      "prioridad": 9,
       "condiciones": {
-        "minimo_carrito_mxn": 950,
-        "metodos_pago": ["card_credit", "card_debit"],
+        "minimo_carrito_mxn": 600,
+        "metodos_pago": ["card_credit"],
         "bancos": ["HSBC"]
       },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 8
-      }
+      "beneficio": { "tipo": "descuento_fijo", "valor": 25 }
     },
     {
-      "id": "HSBC-3MSI-1300",
-      "titulo": "3 MSI HSBC desde $1,300",
-      "descripcion_cliente": "Difiere a 3 MSI pagando con HSBC en compras desde $1,300.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2026-01-15T23:59:59Z",
-      "prioridad": 14,
+      "id": "HSBC-DF60-1300",
+      "titulo": "Descuento HSBC $60 desde $1,300",
+      "descripcion_cliente": "Ahorra $60 pagando con HSBC desde $1,300.",
+      "vigencia_inicio": "2025-12-10T00:00:00Z",
+      "vigencia_fin": "2026-05-10T23:59:59Z",
+      "prioridad": 11,
       "condiciones": {
         "minimo_carrito_mxn": 1300,
         "metodos_pago": ["card_credit"],
         "bancos": ["HSBC"]
       },
-      "beneficio": {
-        "tipo": "msi",
-        "meses": 3
-      }
+      "beneficio": { "tipo": "descuento_fijo", "valor": 60 }
     },
     {
-      "id": "HSBC-10PCT-1900",
-      "titulo": "10% HSBC desde $1,900",
-      "descripcion_cliente": "Si pagas con HSBC y tu compra es de $1,900+ te damos 10%.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
-      "prioridad": 16,
+      "id": "SCO-PCT4-450",
+      "titulo": "4% Scotiabank desde $450",
+      "descripcion_cliente": "Obtén 4% pagando con Scotiabank desde $450.",
+      "vigencia_inicio": "2025-11-10T00:00:00Z",
+      "vigencia_fin": "2026-04-01T23:59:59Z",
+      "prioridad": 8,
       "condiciones": {
-        "minimo_carrito_mxn": 1900,
-        "metodos_pago": ["card_credit"],
-        "bancos": ["HSBC"]
-      },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 10
-      }
-    },
-    {
-      "id": "HSBC-6MSI-2600",
-      "titulo": "6 MSI HSBC desde $2,600",
-      "descripcion_cliente": "6 MSI pagando con HSBC en compras desde $2,600.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2026-01-15T23:59:59Z",
-      "prioridad": 18,
-      "condiciones": {
-        "minimo_carrito_mxn": 2600,
-        "metodos_pago": ["card_credit"],
-        "bancos": ["HSBC"]
-      },
-      "beneficio": {
-        "tipo": "msi",
-        "meses": 6
-      }
-    },
-
-    {
-      "id": "SCOTIA-5PCT-500",
-      "titulo": "5% Scotiabank desde $500",
-      "descripcion_cliente": "Paga con tu tarjeta Scotiabank y recibe 5% desde $500.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
-      "prioridad": 10,
-      "condiciones": {
-        "minimo_carrito_mxn": 500,
+        "minimo_carrito_mxn": 450,
         "metodos_pago": ["card_credit", "card_debit"],
         "bancos": ["Scotiabank"]
       },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 5
-      }
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 4 }
     },
     {
-      "id": "SCOTIA-7PCT-800",
-      "titulo": "7% Scotiabank desde $800",
-      "descripcion_cliente": "Compras desde $800 con Scotiabank reciben 7% de descuento.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
+      "id": "SCO-PCT7-900",
+      "titulo": "7% Scotiabank desde $900",
+      "descripcion_cliente": "Obtén 7% pagando con Scotiabank desde $900.",
+      "vigencia_inicio": "2025-11-10T00:00:00Z",
+      "vigencia_fin": "2026-04-01T23:59:59Z",
       "prioridad": 12,
       "condiciones": {
-        "minimo_carrito_mxn": 800,
-        "metodos_pago": ["card_credit", "card_debit"],
+        "minimo_carrito_mxn": 900,
+        "metodos_pago": ["card_credit"],
         "bancos": ["Scotiabank"]
       },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 7
-      }
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 7 }
     },
     {
-      "id": "SCOTIA-3MSI-1200",
+      "id": "SCO-MSI3-1200",
       "titulo": "3 MSI Scotiabank desde $1,200",
-      "descripcion_cliente": "Difiere a 3 MSI pagando con Scotiabank en compras desde $1,200.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2026-01-15T23:59:59Z",
+      "descripcion_cliente": "Difiere a 3 MSI pagando con Scotiabank desde $1,200.",
+      "vigencia_inicio": "2025-11-10T00:00:00Z",
+      "vigencia_fin": "2026-04-01T23:59:59Z",
       "prioridad": 14,
       "condiciones": {
         "minimo_carrito_mxn": 1200,
         "metodos_pago": ["card_credit"],
         "bancos": ["Scotiabank"]
       },
-      "beneficio": {
-        "tipo": "msi",
-        "meses": 3
-      }
+      "beneficio": { "tipo": "msi", "meses": 3 }
     },
     {
-      "id": "SCOTIA-10PCT-1800",
-      "titulo": "10% Scotiabank desde $1,800",
-      "descripcion_cliente": "Paga con Scotiabank y desde $1,800 te damos 10% de descuento.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
-      "prioridad": 16,
+      "id": "SCO-DF20-500",
+      "titulo": "Descuento Scotia $20 desde $500",
+      "descripcion_cliente": "Ahorra $20 pagando con Scotiabank desde $500.",
+      "vigencia_inicio": "2025-12-12T00:00:00Z",
+      "vigencia_fin": "2026-04-20T23:59:59Z",
+      "prioridad": 9,
       "condiciones": {
-        "minimo_carrito_mxn": 1800,
+        "minimo_carrito_mxn": 500,
         "metodos_pago": ["card_credit"],
         "bancos": ["Scotiabank"]
       },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 10
-      }
+      "beneficio": { "tipo": "descuento_fijo", "valor": 20 }
     },
     {
-      "id": "SCOTIA-6MSI-2400",
-      "titulo": "6 MSI Scotiabank desde $2,400",
-      "descripcion_cliente": "6 MSI pagando con Scotiabank desde $2,400.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2026-01-15T23:59:59Z",
-      "prioridad": 18,
-      "condiciones": {
-        "minimo_carrito_mxn": 2400,
-        "metodos_pago": ["card_credit"],
-        "bancos": ["Scotiabank"]
-      },
-      "beneficio": {
-        "tipo": "msi",
-        "meses": 6
-      }
-    },
-
-    {
-      "id": "AMEX-5PCT-700",
-      "titulo": "5% AMEX desde $700",
-      "descripcion_cliente": "Paga con American Express y recibe 5% de descuento desde $700.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
+      "id": "AMEX-PCT5-600",
+      "titulo": "5% AMEX desde $600",
+      "descripcion_cliente": "Obtén 5% pagando con American Express desde $600.",
+      "vigencia_inicio": "2025-12-01T00:00:00Z",
+      "vigencia_fin": "2026-04-10T23:59:59Z",
       "prioridad": 10,
       "condiciones": {
-        "minimo_carrito_mxn": 700,
+        "minimo_carrito_mxn": 600,
         "metodos_pago": ["card_credit"],
         "bancos": ["American Express"]
       },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 5
-      }
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 5 }
     },
     {
-      "id": "AMEX-8PCT-1100",
-      "titulo": "8% AMEX desde $1,100",
-      "descripcion_cliente": "Compras desde $1,100 con AMEX reciben 8% de descuento.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
-      "prioridad": 12,
-      "condiciones": {
-        "minimo_carrito_mxn": 1100,
-        "metodos_pago": ["card_credit"],
-        "bancos": ["American Express"]
-      },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 8
-      }
-    },
-    {
-      "id": "AMEX-3MSI-1500",
-      "titulo": "3 MSI AMEX desde $1,500",
-      "descripcion_cliente": "Difiere a 3 MSI tus compras desde $1,500 pagando con AMEX.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2026-01-15T23:59:59Z",
+      "id": "AMEX-PCT10-1400",
+      "titulo": "10% AMEX desde $1,400",
+      "descripcion_cliente": "Obtén 10% pagando con AMEX desde $1,400.",
+      "vigencia_inicio": "2025-12-01T00:00:00Z",
+      "vigencia_fin": "2026-04-10T23:59:59Z",
       "prioridad": 14,
       "condiciones": {
-        "minimo_carrito_mxn": 1500,
+        "minimo_carrito_mxn": 1400,
         "metodos_pago": ["card_credit"],
         "bancos": ["American Express"]
       },
-      "beneficio": {
-        "tipo": "msi",
-        "meses": 3
-      }
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 10 }
     },
     {
-      "id": "AMEX-12PCT-2200",
-      "titulo": "12% AMEX desde $2,200",
-      "descripcion_cliente": "Si pagas con AMEX y compras $2,200 o más te damos 12% de descuento.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
+      "id": "AMEX-MSI3-1600",
+      "titulo": "3 MSI AMEX desde $1,600",
+      "descripcion_cliente": "Difiere a 3 MSI pagando con AMEX desde $1,600.",
+      "vigencia_inicio": "2025-12-01T00:00:00Z",
+      "vigencia_fin": "2026-04-10T23:59:59Z",
       "prioridad": 16,
       "condiciones": {
-        "minimo_carrito_mxn": 2200,
+        "minimo_carrito_mxn": 1600,
         "metodos_pago": ["card_credit"],
         "bancos": ["American Express"]
       },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 12
-      }
+      "beneficio": { "tipo": "msi", "meses": 3 }
     },
     {
-      "id": "AMEX-6MSI-3000",
-      "titulo": "6 MSI AMEX desde $3,000",
-      "descripcion_cliente": "Paga con American Express y desde $3,000 te damos 6 MSI.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2026-01-15T23:59:59Z",
-      "prioridad": 18,
+      "id": "AMEX-CB50-1000",
+      "titulo": "Cashback AMEX $50 desde $1,000",
+      "descripcion_cliente": "Recibe $50 de cashback pagando con American Express desde $1,000.",
+      "vigencia_inicio": "2025-12-01T00:00:00Z",
+      "vigencia_fin": "2026-04-10T23:59:59Z",
+      "prioridad": 13,
       "condiciones": {
-        "minimo_carrito_mxn": 3000,
+        "minimo_carrito_mxn": 1000,
         "metodos_pago": ["card_credit"],
         "bancos": ["American Express"]
       },
-      "beneficio": {
-        "tipo": "msi",
-        "meses": 6
-      }
+      "beneficio": { "tipo": "cashback_fijo", "valor": 50 }
     },
-
     {
-      "id": "BBVA-SANT-10PCT-2000",
-      "titulo": "10% BBVA y Santander desde $2,000",
-      "descripcion_cliente": "Si pagas con BBVA o Santander y tu compra es de $2,000+ te damos 10%.",
-      "vigencia_inicio": "2025-10-15T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
-      "prioridad": 19,
+      "id": "GEN-PCT2-300",
+      "titulo": "2% en tu compra desde $300",
+      "descripcion_cliente": "Aprovecha 2% de descuento en compras desde $300 pagando con cualquier tarjeta.",
+      "vigencia_inicio": "2025-11-05T00:00:00Z",
+      "vigencia_fin": "2026-03-31T23:59:59Z",
+      "prioridad": 5,
+      "condiciones": {
+        "minimo_carrito_mxn": 300,
+        "metodos_pago": ["card_credit", "card_debit"],
+        "bancos": ["EMPTY"]
+      },
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 2 }
+    },
+    {
+      "id": "GEN-PCT4-700",
+      "titulo": "4% en tu compra desde $700",
+      "descripcion_cliente": "Obtén 4% de descuento en compras desde $700.",
+      "vigencia_inicio": "2025-11-05T00:00:00Z",
+      "vigencia_fin": "2026-03-31T23:59:59Z",
+      "prioridad": 7,
+      "condiciones": {
+        "minimo_carrito_mxn": 700,
+        "metodos_pago": ["card_credit", "card_debit"],
+        "bancos": ["EMPTY"]
+      },
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 4 }
+    },
+    {
+      "id": "GEN-PCT6-1200",
+      "titulo": "6% en compras desde $1,200",
+      "descripcion_cliente": "Si tu compra es de $1,200 o más, recibe 6% sin importar tu banco.",
+      "vigencia_inicio": "2025-11-05T00:00:00Z",
+      "vigencia_fin": "2026-03-31T23:59:59Z",
+      "prioridad": 9,
+      "condiciones": {
+        "minimo_carrito_mxn": 1200,
+        "metodos_pago": ["card_credit", "card_debit"],
+        "bancos": ["EMPTY"]
+      },
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 6 }
+    },
+    {
+      "id": "GEN-PCT8-2000",
+      "titulo": "8% en compras desde $2,000",
+      "descripcion_cliente": "Obtén 8% de descuento en compras mayores a $2,000 con cualquier tarjeta.",
+      "vigencia_inicio": "2025-11-05T00:00:00Z",
+      "vigencia_fin": "2026-03-31T23:59:59Z",
+      "prioridad": 12,
       "condiciones": {
         "minimo_carrito_mxn": 2000,
         "metodos_pago": ["card_credit"],
-        "bancos": ["BBVA", "Santander"]
+        "bancos": ["EMPTY"]
       },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 10
-      }
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 8 }
     },
     {
-      "id": "CITI-AMEX-12PCT-2500",
+      "id": "GEN-DF20-500",
+      "titulo": "Descuento de $20 desde $500",
+      "descripcion_cliente": "Ahorra $20 en compras desde $500 pagando con cualquier tarjeta.",
+      "vigencia_inicio": "2025-11-10T00:00:00Z",
+      "vigencia_fin": "2026-04-15T23:59:59Z",
+      "prioridad": 6,
+      "condiciones": {
+        "minimo_carrito_mxn": 500,
+        "metodos_pago": ["card_credit", "card_debit"],
+        "bancos": ["EMPTY"]
+      },
+      "beneficio": { "tipo": "descuento_fijo", "valor": 20 }
+    },
+    {
+      "id": "GEN-DF40-1000",
+      "titulo": "Descuento de $40 desde $1,000",
+      "descripcion_cliente": "Ahorra $40 en compras mayores a $1,000.",
+      "vigencia_inicio": "2025-11-10T00:00:00Z",
+      "vigencia_fin": "2026-04-15T23:59:59Z",
+      "prioridad": 8,
+      "condiciones": {
+        "minimo_carrito_mxn": 1000,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["EMPTY"]
+      },
+      "beneficio": { "tipo": "descuento_fijo", "valor": 40 }
+    },
+    {
+      "id": "GEN-DF80-2500",
+      "titulo": "Descuento de $80 desde $2,500",
+      "descripcion_cliente": "Si compras $2,500 o más, recibe un descuento fijo de $80.",
+      "vigencia_inicio": "2025-11-10T00:00:00Z",
+      "vigencia_fin": "2026-04-15T23:59:59Z",
+      "prioridad": 11,
+      "condiciones": {
+        "minimo_carrito_mxn": 2500,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["EMPTY"]
+      },
+      "beneficio": { "tipo": "descuento_fijo", "valor": 80 }
+    },
+    {
+      "id": "GEN-CB30-800",
+      "titulo": "Cashback $30 desde $800",
+      "descripcion_cliente": "Obtén $30 de cashback en compras desde $800.",
+      "vigencia_inicio": "2025-11-12T00:00:00Z",
+      "vigencia_fin": "2026-05-01T23:59:59Z",
+      "prioridad": 10,
+      "condiciones": {
+        "minimo_carrito_mxn": 800,
+        "metodos_pago": ["card_credit", "card_debit"],
+        "bancos": ["EMPTY"]
+      },
+      "beneficio": { "tipo": "cashback_fijo", "valor": 30 }
+    },
+    {
+      "id": "GEN-CB60-1600",
+      "titulo": "Cashback $60 desde $1,600",
+      "descripcion_cliente": "Recibe $60 de cashback pagando con cualquier banco.",
+      "vigencia_inicio": "2025-11-12T00:00:00Z",
+      "vigencia_fin": "2026-05-01T23:59:59Z",
+      "prioridad": 13,
+      "condiciones": {
+        "minimo_carrito_mxn": 1600,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["EMPTY"]
+      },
+      "beneficio": { "tipo": "cashback_fijo", "valor": 60 }
+    },
+    {
+      "id": "GEN-MSI3-1500",
+      "titulo": "3 MSI desde $1,500",
+      "descripcion_cliente": "Difiere tu compra a 3 MSI desde $1,500 con cualquier tarjeta.",
+      "vigencia_inicio": "2025-11-12T00:00:00Z",
+      "vigencia_fin": "2026-05-01T23:59:59Z",
+      "prioridad": 12,
+      "condiciones": {
+        "minimo_carrito_mxn": 1500,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["EMPTY"]
+      },
+      "beneficio": { "tipo": "msi", "meses": 3 }
+    },
+    {
+      "id": "GEN-MSI6-3000",
+      "titulo": "6 MSI desde $3,000",
+      "descripcion_cliente": "Difiere a 6 MSI tus compras desde $3,000 sin importar tu banco.",
+      "vigencia_inicio": "2025-11-12T00:00:00Z",
+      "vigencia_fin": "2026-05-01T23:59:59Z",
+      "prioridad": 15,
+      "condiciones": {
+        "minimo_carrito_mxn": 3000,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["EMPTY"]
+      },
+      "beneficio": { "tipo": "msi", "meses": 6 }
+    },
+    {
+      "id": "BBVA-SANT-PCT10-1500",
+      "titulo": "10% BBVA y Santander desde $1,500",
+      "descripcion_cliente": "Obtén 10% pagando con BBVA o Santander desde $1,500.",
+      "vigencia_inicio": "2025-11-20T00:00:00Z",
+      "vigencia_fin": "2026-03-10T23:59:59Z",
+      "prioridad": 20,
+      "condiciones": {
+        "minimo_carrito_mxn": 1500,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["BBVA", "Santander"]
+      },
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 10 }
+    },
+    {
+      "id": "BBVA-SANT-MSI6-3000",
+      "titulo": "6 MSI BBVA y Santander desde $3,000",
+      "descripcion_cliente": "Difiere tu compra a 6 MSI pagando con BBVA o Santander desde $3,000.",
+      "vigencia_inicio": "2025-11-20T00:00:00Z",
+      "vigencia_fin": "2026-03-10T23:59:59Z",
+      "prioridad": 22,
+      "condiciones": {
+        "minimo_carrito_mxn": 3000,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["BBVA", "Santander"]
+      },
+      "beneficio": { "tipo": "msi", "meses": 6 }
+    },
+
+    {
+      "id": "CITI-AMEX-PCT12-2500",
       "titulo": "12% Citi y AMEX desde $2,500",
-      "descripcion_cliente": "Paga con Citibanamex o American Express y desde $2,500 te damos 12%.",
-      "vigencia_inicio": "2025-11-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
+      "descripcion_cliente": "Obtén 12% pagando con Citibanamex o American Express desde $2,500.",
+      "vigencia_inicio": "2025-12-01T00:00:00Z",
+      "vigencia_fin": "2026-03-20T23:59:59Z",
       "prioridad": 21,
       "condiciones": {
         "minimo_carrito_mxn": 2500,
         "metodos_pago": ["card_credit"],
-        "bancos": ["Citibanamex", "American Express"]
+        "bancos": ["Banamex", "Citibanamex", "American Express"]
       },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 12
-      }
-    },
-        {
-      "id": "GEN-3PCT-400",
-      "titulo": "3% en tu compra desde $400",
-      "descripcion_cliente": "Aprovecha 3% de descuento en tu compra desde $400, sin importar tu banco.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
-      "prioridad": 6,
-      "condiciones": {
-        "minimo_carrito_mxn": 400,
-        "metodos_pago": ["card_credit", "card_debit"],
-        "bancos": ["EMPTY"]
-      },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 3
-      }
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 12 }
     },
     {
-      "id": "GEN-5PCT-800",
-      "titulo": "5% en tu compra desde $800",
-      "descripcion_cliente": "Obtén 5% de descuento en compras desde $800, sin necesidad de compartir tu banco.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
-      "prioridad": 8,
+      "id": "CITI-AMEX-DF100-3500",
+      "titulo": "Cashback $100 Citi y AMEX desde $3,500",
+      "descripcion_cliente": "Recibe $100 de cashback pagando con Citibanamex o AMEX desde $3,500.",
+      "vigencia_inicio": "2025-12-01T00:00:00Z",
+      "vigencia_fin": "2026-03-20T23:59:59Z",
+      "prioridad": 22,
       "condiciones": {
-        "minimo_carrito_mxn": 800,
-        "metodos_pago": ["card_credit", "card_debit"],
-        "bancos": ["EMPTY"]
+        "minimo_carrito_mxn": 3500,
+        "metodos_pago": ["card_credit"],
+        "bancos": ["Banamex", "Citibanamex", "American Express"]
       },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 5
-      }
+      "beneficio": { "tipo": "cashback_fijo", "valor": 100 }
     },
+
     {
-      "id": "GEN-7PCT-1200",
-      "titulo": "7% en tu compra desde $1,200",
-      "descripcion_cliente": "Si tu compra es de $1,200 o más, recibe 7% de descuento sin importar el banco de tu tarjeta.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
-      "prioridad": 10,
-      "condiciones": {
-        "minimo_carrito_mxn": 1200,
-        "metodos_pago": ["card_credit", "card_debit"],
-        "bancos": ["EMPTY"]
-      },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 7
-      }
-    },
-    {
-      "id": "GEN-3MSI-1800",
-      "titulo": "3 MSI desde $1,800",
-      "descripcion_cliente": "Difiere tu compra a 3 meses sin intereses desde $1,800, sin necesidad de indicar tu banco.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2026-01-15T23:59:59Z",
-      "prioridad": 12,
+      "id": "HSBC-SCO-PCT9-1800",
+      "titulo": "9% HSBC y Scotiabank desde $1,800",
+      "descripcion_cliente": "Obtén 9% pagando con HSBC o Scotiabank desde $1,800.",
+      "vigencia_inicio": "2025-12-05T00:00:00Z",
+      "vigencia_fin": "2026-04-15T23:59:59Z",
+      "prioridad": 18,
       "condiciones": {
         "minimo_carrito_mxn": 1800,
         "metodos_pago": ["card_credit"],
-        "bancos": ["EMPTY"]
+        "bancos": ["HSBC", "Scotiabank"]
       },
-      "beneficio": {
-        "tipo": "msi",
-        "meses": 3
-      }
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 9 }
     },
+
     {
-      "id": "GEN-10PCT-2500",
-      "titulo": "10% en tu compra desde $2,500",
-      "descripcion_cliente": "Llévate 10% de descuento en compras desde $2,500 sin compartir los datos de tu banco.",
-      "vigencia_inicio": "2025-10-01T00:00:00Z",
-      "vigencia_fin": "2025-12-31T23:59:59Z",
-      "prioridad": 14,
+      "id": "GEN-BBVA-PCT6-1000",
+      "titulo": "6% general o BBVA desde $1,000",
+      "descripcion_cliente": "Obtén 6% en compras desde $1,000. Aplica para BBVA o cualquier banco si no eliges uno.",
+      "vigencia_inicio": "2025-12-10T00:00:00Z",
+      "vigencia_fin": "2026-04-30T23:59:59Z",
+      "prioridad": 17,
       "condiciones": {
-        "minimo_carrito_mxn": 2500,
+        "minimo_carrito_mxn": 1000,
         "metodos_pago": ["card_credit"],
-        "bancos": ["EMPTY"]
+        "bancos": ["EMPTY", "BBVA"]
       },
-      "beneficio": {
-        "tipo": "descuento_porcentaje",
-        "valor": 10
-      }
+      "beneficio": { "tipo": "descuento_porcentaje", "valor": 6 }
     }
   ]
 }
