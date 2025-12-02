@@ -200,22 +200,31 @@ def apply_promo_to_cart(pool, user_id: int) -> Dict[str, Any]:
     discount_amount = 0.0
     final_amount = amount
 
+    # 1) Descuento porcentual
     if promo_type == "descuento_porcentaje":
-        # Descuento directo sobre el total del carrito
-        try:
-            percentage = float(benefit.get("percentage", 0) or 0.0)
-        except (TypeError, ValueError):
-            percentage = 0.0
+        percentage = float(benefit.get("percentage", benefit.get("valor", 0)) or 0.0)
         discount_amount = round(original_amount * (percentage / 100.0), 2)
         final_amount = round(original_amount - discount_amount, 2)
 
+    # 2) MSI (cualquier número de meses)
     elif promo_type == "msi":
-        # MSI: normalmente no cambia el total, solo las condiciones de pago.
+        # Las MSI no cambian el total, solo afectan condiciones de pago
         discount_amount = 0.0
         final_amount = original_amount
 
+    # 3) Descuento fijo (nuevo)
+    elif promo_type == "descuento_fijo":
+        value = float(benefit.get("valor", 0))
+        discount_amount = min(value, original_amount)
+        final_amount = round(original_amount - discount_amount, 2)
+
+    # 4) Cashback fijo (nuevo)
+    elif promo_type == "cashback_fijo":
+        # Cashback NO reduce el total del carrito, pero sí se reporta al usuario
+        discount_amount = float(benefit.get("valor", 0))
+        final_amount = original_amount  # El total no baja, solo se acredita cashback
+
     else:
-        # Tipo de promoción no soportado aún
         return {
             "error": "UNKNOWN_PROMO_TYPE",
             "message": f"Tipo de promoción no soportado: {promo_type}",
