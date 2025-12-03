@@ -258,6 +258,7 @@ function PromoSidebar({ appliedPromo, setAppliedPromo }) {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
+          bank: value,
           brand: value,
           type: "card",
           last4: "0000",
