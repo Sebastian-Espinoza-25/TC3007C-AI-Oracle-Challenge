@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { normalizeProduct } from "../utils/normalizer"; // ⬅ UNIVERSAL
 import ProductCard from "../components/UI/ProductCard";
 import FilterBar from "../components/UI/FilterBar";
 import Pagination from "../components/UI/Pagination";
@@ -8,39 +9,6 @@ import filtersData from "../Filters.json";
 const BASE_API_URL =
   import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 const LIMIT = 20;
-
-/* -------------------------------------------------------
-   Normalizar productos
-------------------------------------------------------- */
-const normalizeProducts = (items = []) =>
-  items.map((item, index) => {
-    const priceString = String(item.price ?? "");
-    const integerPart = priceString.split(".")[0] || "0";
-
-    const fallbackId =
-      item.external_article_id ||
-      item.product_code ||
-      `${item.prod_name || "prod"}-${index}`;
-
-    const hasValidImage =
-      item.image_url &&
-      item.image_url !== "undefined" &&
-      item.image_url !== "";
-
-    return {
-      id: fallbackId,
-      external_article_id: fallbackId,
-      name: item.prod_name || item.title || `Producto ${index + 1}`,
-      price: integerPart,
-      stock: item.stock ?? 0,
-      color: item.perceived_colour_master_name || "N/A",
-      image: hasValidImage
-        ? item.image_url
-        : `https://placehold.co/500x750?text=${encodeURIComponent(
-            (item.prod_name || "Producto").substring(0, 16)
-          )}`,
-    };
-  });
 
 /* -------------------------------------------------------
    Leer filtros desde URL
@@ -100,7 +68,9 @@ const Catalog = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
 
-  /* Sync URL → filtros */
+  /* -------------------------------------------------------
+      Sync URL → filtros
+  ------------------------------------------------------- */
   useEffect(() => {
     setFilters(parseFiltersFromURL(location.search));
   }, [location.search]);
@@ -122,7 +92,8 @@ const Catalog = () => {
       const res = await fetch(url);
       const data = await res.json();
 
-      setProducts(normalizeProducts(data.items || []));
+      // ⬅ USA NORMALIZADOR UNIVERSAL
+      setProducts((data.items || []).map((item, i) => normalizeProduct(item, i)));
 
       const totalItems = Number(data.total) || (data.items?.length || 0);
       setTotalPages(Math.max(1, Math.ceil(totalItems / LIMIT)));
@@ -185,7 +156,6 @@ const Catalog = () => {
       Cambio de filtros (UI FilterBar)
   ------------------------------------------------------- */
   const handleFiltersChange = (newFilters) => {
-    // aplicar reglas
     let finalFilters = removeQIfFiltersApplied(newFilters);
     finalFilters = clearFiltersIfQ(finalFilters);
 

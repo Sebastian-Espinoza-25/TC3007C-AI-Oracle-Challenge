@@ -177,7 +177,7 @@ const SearchBar = () => {
         <div className="absolute bg-white w-full mt-1 rounded shadow-md z-50 max-h-72 overflow-auto">
           {suggestions.map((product, idx) => (
             <SuggestionItem
-              key={product.id}
+              key={product.external_article_id}
               product={product}
               isActive={idx === activeIndex}
               onSelect={() => {
