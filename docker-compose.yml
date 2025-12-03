@@ -1,0 +1,27 @@
+services:
+  backend:
+    build: ./backend
+    container_name: allure-backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/.env.docker
+    environment:
+      FLASK_ENV: production
+      FLASK_DEBUG: 0
+      TNS_ADMIN: /backend/Wallet_OracleChallenge
+      OCI_CONFIG_FILE: /backend/.oci/config
+      OCI_PROFILE: DEFAULT
+    volumes:
+      - ./backend/Wallet_OracleChallenge:/backend/Wallet_OracleChallenge
+      - ./backend/.oci:/backend/.oci
+    restart: always
+
+  frontend:
+    build: ./frontend
+    container_name: allure-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: always
