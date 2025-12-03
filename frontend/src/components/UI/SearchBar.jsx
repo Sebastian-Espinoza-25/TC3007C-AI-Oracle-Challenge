@@ -110,7 +110,6 @@ const SearchBar = () => {
     setSuggestions([]);
     setShowSuggestions(false);
     setActiveIndex(-1);
-    navigate("/catalog"); // limpia q de la URL
   };
 
   // --- TECLADO ---

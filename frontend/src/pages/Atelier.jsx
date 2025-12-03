@@ -417,32 +417,35 @@ const Atelier = () => {
   return (
     <div className="min-h-screen flex flex-col bg-[#F7F7F7]">
       {/* Navbar */}
-      <div className="w-full py-6 flex justify-center items-center gap-4 bg-white shadow-sm border-b border-gray-200 relative">
+      <div className="w-full py-6 flex justify-center items-center gap-4 bg-white shadow-sm border-b border-gray-200 fixed z-50">
         <img src={logo} alt="logo" className="h-10 w-auto" />
         <h1 className="text-2xl font-bold text-[#1B1B5E]">ATELIER</h1>
 
         <div className="absolute right-10 flex items-center gap-6 text-gray-700">
           <button
             onClick={() => navigate("/")}
-            className="text-3xl text-primary-500 hover:text-primary-400 transition"
+            className="text-3xl text-primary-500 hover:text-primary-400 transition flex flex-col items-center justify-cente"
           >
             <AiOutlineHome />
+            <p className="text-sm font-bold">Home</p>
           </button>
 
           <button
             onClick={() => navigate("/cart")}
-            className="text-3xl text-primary-500 hover:text-primary-400 transition"
+            className="text-3xl text-primary-500 hover:text-primary-400 transition flex flex-col items-center justify-cente"
           >
             <MdOutlineShoppingCart />
+            <p className="text-sm font-bold">Carrito</p>
           </button>
 
           {/* User menu */}
           <div className="relative">
             <button
               onClick={() => setShowUserMenu((prev) => !prev)}
-              className="text-3xl text-primary-500 hover:text-primary-400 transition"
+              className="text-3xl text-primary-500 hover:text-primary-400 transition flex flex-col items-center justify-center"
             >
               <RiAccountCircleLine />
+              <p className="text-sm font-bold">Perfil</p>
             </button>
 
             {showUserMenu && (
@@ -460,11 +463,11 @@ const Atelier = () => {
       </div>
 
       {/* Body */}
-      <div className="flex flex-1 overflow-hidden relative">
+      <div className="flex flex-1 overflow-hidden relative pt-24">
         {/* Sidebar */}
         <div
-          className={`bg-white border-r border-gray-200 p-5 overflow-y-auto transition-all duration-300 ${
-            sidebarOpen ? "w-64" : "w-0 p-0"
+          className={`fixed p-6 top-24 left-0 h-[calc(100vh-96px)] bg-white border-r border-gray-200 overflow-y-auto transition-all duration-300 ${
+            sidebarOpen ? "w-64" : "w-0"
           }`}
         >
           {sidebarOpen && (
@@ -510,13 +513,18 @@ const Atelier = () => {
         {/* Sidebar toggle */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white border border-gray-200 rounded-full shadow-md px-2 py-1 text-gray-500 hover:text-primary-500 transition z-10"
+          className={`fixed top-1/2 transform -translate-y-1/2 z-40 bg-white border border-gray-200 rounded-full shadow-md px-2 py-1 text-gray-500 hover:text-primary-500 transition
+          ${sidebarOpen ? "left-64" : "left-0"}`}
         >
           {sidebarOpen ? "◀" : "▶"}
         </button>
-
         {/* Main Chat */}
-        <div className="flex-1 flex flex-col h-full">
+        <div
+          className={`flex-1 flex flex-col h-full transition-all duration-300 ${
+            sidebarOpen ? "ml-70" : "ml-10"
+          }`}
+        >
+
           <div className="flex-1 overflow-y-auto p-6 space-y-3 pb-32">
             {/* Greeting */}
             {currentConv.messages.length === 0 ? (
