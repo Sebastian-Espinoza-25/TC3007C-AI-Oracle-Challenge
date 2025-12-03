@@ -30,6 +30,8 @@ const Atelier = () => {
   const { addItem } = useCart();
   const { isLoggedIn } = useAuth();
 
+  const [latencies, setLatencies]= useState([]);    // store latency of each answer in a conv.
+
   /** Formats timestamp */
   const getTimestamp = () => {
     const now = new Date();
@@ -48,9 +50,8 @@ const Atelier = () => {
     return () => clearTimeout(timeout);
   }, []);
 
-  // -------------------------------------------------------------------------
-  // HANDLE SEND (TEXT ONLY): Sends a text message to /api/ideator/chat using form-data (required)
-  // -------------------------------------------------------------------------
+  // HANDLE SEND (TEXT ONLY): Sends a text message to /api/ideator/chat using form-data 
+ 
   const handleSend = async (e) => {
     e.preventDefault();
 
@@ -86,7 +87,9 @@ const Atelier = () => {
     }));
 
     try {
-      // Use FormData because backend expects "text" as form field
+
+      //Latency start
+      const startTime= performance.now();  
       const formData = new FormData();
       formData.append("text", userText);
 
@@ -95,6 +98,25 @@ const Atelier = () => {
         body: formData,
       });
 
+      // Latency ends 
+      const endTime= performance.now()
+      const latency= Math.round(endTime- startTime)
+
+      setLatencies((prev) => {
+        const updated= [...prev, latency];
+        console.log(`%c[ATELIER LATENCY] ${latency} ms – /ideator/chat`);
+
+        console.log("%c[ATELIER LATENCIES] ", updated);
+
+        //Average latency 
+        const avg= updated.reduce((acc, v) => acc + v, 0) / updated.length;
+        console.log(`%c[ATELIER AVG LATENCY] ${Math.round(avg)} ms`);
+
+        return updated
+      }); 
+
+
+      // If no recoomendations
       if (!resp.ok) throw new Error("Chat agent failed");
 
       const data = await resp.json();
@@ -184,9 +206,8 @@ const Atelier = () => {
     }
   };
 
-  // -------------------------------------------------------------------------
-  // HANDLE FILE UPLOAD (IMAGE + OPTIONAL TEXT)
-  // -------------------------------------------------------------------------
+
+  // HANDLE FILE UPLOAD
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -236,10 +257,31 @@ const Atelier = () => {
     );
 
     try {
+      //Latency start 
+      const startTime= performance.now()
+
       const resp = await fetch(`${import.meta.env.VITE_API_URL}/ideator/image`, {
         method: "POST",
         body: formData,
       });
+
+      //Latency end 
+      const endTime= performance.now();
+      const latency= Math.round(endTime- startTime);
+
+      setLatencies((prev) =>{
+        const updated= [...prev, latency]; 
+        console.log(`%c[ATELIER LATENCY] ${latency} ms – /ideator/image`);
+        console.log("%c[ATELIER LATENCIES] ", updated);
+
+        const avg= updated.reduce((acc, v) => acc + v, 0) / updated.length;
+
+        console.log(
+          `%c[ATELIER AVG LATENCY] ${Math.round(avg)} ms`);
+
+        return updated;
+      });
+
 
       if (!resp.ok) throw new Error("Image analysis failed");
 
