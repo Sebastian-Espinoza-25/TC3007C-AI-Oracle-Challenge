@@ -15,3 +15,6 @@
 **/*.jpg
 
 **/*.JPG
+
+.env.production
+.env.development

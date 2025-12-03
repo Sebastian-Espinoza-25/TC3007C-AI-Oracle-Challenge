@@ -30,5 +30,5 @@ ENV OCI_PROFILE=DEFAULT
 EXPOSE 5000
 
 # Start production server
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "run:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--timeout", "120", "run:app"]
 
