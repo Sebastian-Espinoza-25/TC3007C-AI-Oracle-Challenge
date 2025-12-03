@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import ProductCard from "../components/UI/ProductCard";
 import heroBannerImage from "../assets/banner.jpg";
@@ -9,6 +9,40 @@ import { normalizeProduct } from "../utils/normalizer";
 
 const LIMIT = 20;
 
+// ----------------------------------------------
+// SHUFFLE ESTABLE POR SESIÓN
+// ----------------------------------------------
+const seededShuffle = (arr, seed) => {
+  const rng = (s) => {
+    const x = Math.sin(s) * 10000;
+    return x - Math.floor(x);
+  };
+
+  return arr
+    .map((item, i) => ({ item, sort: rng(seed * (i + 1)) }))
+    .sort((a, b) => a.sort - b.sort)
+    .map(({ item }) => item);
+};
+
+// ----------------------------------------------
+// RANDOM INTELIGENTE (Nivel 3)
+// ----------------------------------------------
+const smartRandomFeed = (products) => {
+  return products
+    .map((p) => {
+      let weight = 1;
+
+      if (p.image) weight += 2; // imagen → más prioridad
+      if (p.price > 10 && p.price < 800) weight += 1; // precio ok
+      if (p.stock > 5) weight += 1; // stock
+      if (!p.name) weight -= 2; // castigo por datos incompletos
+
+      return { p, score: Math.random() * weight };
+    })
+    .sort((a, b) => b.score - a.score)
+    .map((x) => x.p);
+};
+
 const Home = () => {
   const {
     isSidebarOpen,
@@ -16,6 +50,7 @@ const Home = () => {
     isLoading: loadingPreferences,
   } = useOutletContext();
 
+  const seedRef = useRef(Math.random()); // semilla única por sesión
   const { addItem } = useCart();
   const navigate = useNavigate();
 
@@ -25,7 +60,6 @@ const Home = () => {
   const [loadingProducts, setLoadingProducts] = useState(new Set());
   const [isLoading, setIsLoading] = useState(false);
 
-  // Detectar si está logueado
   const isLoggedIn = !!localStorage.getItem("token");
 
   const sidebarWidthClass = "md:mr-96";
@@ -33,6 +67,7 @@ const Home = () => {
         w-full transition-all duration-300 ease-in-out
         ${isSidebarOpen ? sidebarWidthClass : ""}
     `;
+
   const productGridClasses = `
         grid grid-cols-1 sm:grid-cols-2 gap-4
         ${isSidebarOpen ? "lg:grid-cols-4" : "lg:grid-cols-4"}
@@ -49,7 +84,6 @@ const Home = () => {
       offset: (page - 1) * LIMIT,
     });
 
-    // Si está logueado y tiene preferencias → usar filtros
     const hasPreferences =
       isLoggedIn && Array.isArray(userPreferences) && userPreferences.length > 0;
 
@@ -80,10 +114,15 @@ const Home = () => {
 
       const data = await response.json();
 
-      // AQUÍ aplicamos la normalización universal
-      const normalized = (data.items || []).map((item, i) =>
+      let normalized = (data.items || []).map((item, i) =>
         normalizeProduct(item, i)
       );
+
+      // NIVEL 3 → orden inteligente
+      normalized = smartRandomFeed(normalized);
+
+      // SHUFFLE ESTABLE → aleatorio pero fijo por sesión
+      normalized = seededShuffle(normalized, seedRef.current);
 
       setProducts(normalized);
       setTotalPages(Math.ceil((data.total || 1) / LIMIT));
@@ -95,9 +134,9 @@ const Home = () => {
     }
   };
 
-  /* ------------------------------------------------------
-     Cuando cambian preferencias → Reiniciar a página 1
-  ------------------------------------------------------ */
+  /* ----------------------------------------------
+     Preferencias → resetear a página 1
+  ---------------------------------------------- */
   useEffect(() => {
     if (!isLoggedIn) return;
     if (userPreferences.length) {
@@ -106,9 +145,9 @@ const Home = () => {
     }
   }, [userPreferences]);
 
-  /* ------------------------------------------------------
-     Cuando cambia la página → recargar
-  ------------------------------------------------------ */
+  /* ----------------------------------------------
+     Cambio de página → recargar productos
+  ---------------------------------------------- */
   useEffect(() => {
     fetchPageProducts();
   }, [page]);
@@ -144,14 +183,12 @@ const Home = () => {
       navigate("/auth/login");
       return;
     }
-
     navigate("/atelier");
   };
 
   /* ------------------------------------------------------
-     UI Render
+     UI
   ------------------------------------------------------ */
-
   if (loadingPreferences || isLoading) {
     return (
       <div className="text-center mt-20">
@@ -162,7 +199,7 @@ const Home = () => {
 
   if (products.length === 0) {
     return (
-      <div className={"text-center text-2xl mt-20"}>
+      <div className="text-center text-2xl mt-20">
         <p>No se encontraron productos.</p>
       </div>
     );
