@@ -2,133 +2,122 @@ import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import CustomButton from './CustomButton';
-import imagen from '../../assets/react.svg';
+import placeholderImg from '../../assets/react.svg';
 
-const ProductCard = ({ product, onAddToCart, isOverlay, isLoading, draggable = true }) => {
-  // Guard clause to avoid rendering when product is missing or undefined
+const ProductCard = ({
+  product,
+  onAddToCart,
+  isOverlay = false,
+  isLoading = false,
+  draggable = true,
+}) => {
   if (!product) return null;
 
-  // Build a stable draggable ID. Avoid fallback strings since that breaks the DragOverlay.
-  const stableId = product.external_article_id || product.id;
-  if (!stableId) {
-    console.warn("Product without valid ID detected:", product);
-  }
+  /* -------------------------------------------------------
+     1) ID ESTABLE PARA DND
+  ------------------------------------------------------- */
+  const stableId =
+    product.id ||
+    product.external_article_id ||
+    String(product?.product_code || '') ||
+    String(product?.sku || '');
 
-  // Make the card draggable and attach product data so the drop target can read it
-  const draggableConfig = useDraggable({
-    id: stableId,
-    // Passing the whole product object can break DnD serialization internally.
-    // Wrap it inside another object to avoid unexpected data shape bugs.
-    data: { product },
-  });
-
+  /* -------------------------------------------------------
+     2) DRAGGABLE CONFIG
+  ------------------------------------------------------- */
   const { attributes, listeners, setNodeRef, transform, isDragging } =
-    draggable
-      ? draggableConfig
-      : { attributes: {}, listeners: {}, setNodeRef: () => {}, transform: null, isDragging: false };
+    draggable && !isOverlay
+      ? useDraggable({
+          id: stableId,
+          data: { product },
+        })
+      : {
+          attributes: {},
+          listeners: {},
+          setNodeRef: () => {},
+          transform: null,
+          isDragging: false,
+        };
 
-  // Use dnd-kit transform to move the element while dragging
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    // When dragging the base card, hide it but keep layout: avoid disappearance glitches
-    visibility: isDragging && !isOverlay ? 'hidden' : 'visible',
-    transition: 'box-shadow 0.2s, transform 0.2s',
-    cursor: isOverlay ? 'grabbing' : draggable ? 'grab' : 'default',
-    zIndex: isOverlay ? 9999 : isDragging ? 1 : 'auto',
-    boxShadow: isDragging && !isOverlay
-      ? '0 10px 20px rgba(0, 0, 0, 0.15)'
-      : '0 4px 6px rgba(0, 0, 0, 0.1)',
-    willChange: 'transform',
-    // Avoid flickering when the overlay appears
-    position: isOverlay ? 'relative' : 'static',
-  };
+  /* -------------------------------------------------------
+     3) FIX: YA NO SE OCULTA → opacity para evitar "desaparición"
+  ------------------------------------------------------- */
+const style = {
+  transform: CSS.Translate.toString(transform),
+  opacity: 1, // SIEMPRE 100%
+  cursor: isDragging || isOverlay ? 'grabbing' : 'grab',
+  zIndex: isOverlay ? 9999 : isDragging ? 999 : 'auto',
+  boxShadow:
+    isOverlay || isDragging
+      ? '0 10px 25px rgba(0,0,0,0.10)'
+      : '0 4px 6px rgba(0,0,0,0.10)',
+  transition: 'box-shadow 150ms ease',
+};
 
-  // Normalize product fields so the card works with different backend shapes
-  const name = product.prod_name || product.name || 'Producto sin nombre';
-  const price = product.price || product.retail_price || 99;
-  const stock = product.stock || 3;
-  const image = product.image_url || product.image || imagen;
-  const color = product.color || 'N/A';
+  /* -------------------------------------------------------
+     4) DATA NORMALIZATION
+  ------------------------------------------------------- */
+  const name = product.name || product.prod_name || 'Producto';
+  const price = parseFloat(product.price || 0);
+  const stock = product.stock || 0;
+  const image = product.image || product.image_url || placeholderImg;
+  const color = product.color || '';
 
-  const numericPrice = parseFloat(price) || 0;
-  const displayPrice = `$${Math.round(numericPrice)}`;
-
-  // Strip a leading ampersand that sometimes appears in the raw data
   const displayName = name.startsWith('&') ? name.substring(1).trim() : name;
-
-  const isInStock = stock > 0;
-  const stockMessage = isInStock ? `¡Sólo ${stock} en stock!` : 'Sin stock';
-  const buttonText = isInStock ? 'Agregar al carrito' : 'Notificarme';
 
   return (
     <div
       ref={setNodeRef}
-      // Attach drag listeners only on the base card, not on the overlay clone
       {...(draggable && !isOverlay ? listeners : {})}
       {...(draggable && !isOverlay ? attributes : {})}
       style={style}
-      className={`w-full rounded-xl overflow-hidden bg-white shadow-lg transition-all duration-200 
-                  ${!isOverlay ? 'hover:shadow-xl' : 'shadow-none'}`}
+      className={`w-full bg-white rounded-xl overflow-hidden shadow-lg transition-all ${
+        !isOverlay ? 'hover:shadow-xl' : ''
+      }`}
     >
       <div className="relative h-[350px] overflow-hidden">
-        {/* Use different ribbon colors for base card vs overlay to visually distinguish them */}
-        <div
-          className={`absolute top-0 right-0 text-white text-xl font-bold py-2 px-6 rounded-bl-xl z-10 bg-red-600`}
-        >
-          {displayPrice}
+        <div className="absolute top-0 right-0 text-white text-xl font-bold py-2 px-6 bg-red-600 rounded-bl-xl z-10">
+          ${Math.round(price)}
         </div>
-        <img
-          src={image}
-          alt={displayName}
-          className="w-full h-full object-cover"
-        />
+
+        <img src={image} alt={displayName} className="w-full h-full object-cover" />
       </div>
 
       <div className="p-6 text-left">
-        {/* Simple anchor to detail page; using href keeps it independent from router hooks */}
         <a
-          href={`/detail/${product.external_article_id || product.id}`}
+          href={`/detail/${stableId}`}
           className="block cursor-pointer hover:underline text-gray-900"
         >
           <h3
             className="font-bold text-xl mb-3 overflow-hidden whitespace-nowrap"
             style={{
-              // Apply a gradient mask so long names fade out instead of being abruptly cut
               WebkitMaskImage: 'linear-gradient(to right, black 90%, transparent 100%)',
-              maskImage: 'linear-gradient(to right, black 90%, transparent 100%)',
             }}
           >
-            {displayName + ' ' + color}
+            {`${displayName} ${color}`}
           </h3>
         </a>
 
-        {isInStock && (
+        {stock > 0 && (
           <div
             className={`inline-block text-white font-bold px-3 py-2 mb-4 rounded-full text-md ${
               isOverlay ? 'bg-gray-500' : 'bg-red-600'
             }`}
           >
-            {stockMessage}
+            ¡Sólo {stock} en stock!
           </div>
         )}
 
-        <div className="mt-2">
-          {/* Disable button interaction inside DragOverlay to avoid accidental clicks while dragging */}
-          <CustomButton
-            text={isLoading ? 'Procesando...' : buttonText}
-            disabled={isLoading}
-            style={'secondary'}
-            extraStyles={`
-                  w-full text-center py-4 text-xl text-white rounded-lg transition duration-200 
-                  ${
-                    (!isInStock || isOverlay || isLoading)
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : 'bg-dark-500 hover:opacity-90 cursor-pointer'
-                  }
-              `}
-            onClick={!isOverlay && !isLoading && isInStock ? onAddToCart : undefined}
-          />
-        </div>
+        <CustomButton
+          text={isLoading ? 'Procesando...' : stock > 0 ? 'Agregar al carrito' : 'Notificarme'}
+          disabled={isLoading}
+          style={'secondary'}
+          extraStyles={`
+            w-full py-4 text-xl text-white rounded-lg
+            ${stock === 0 || isOverlay ? 'bg-gray-400 cursor-not-allowed' : 'bg-dark-500 hover:opacity-90'}
+          `}
+          onClick={!isOverlay && stock > 0 && !isLoading ? onAddToCart : undefined}
+        />
       </div>
     </div>
   );

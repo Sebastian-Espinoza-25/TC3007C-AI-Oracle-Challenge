@@ -67,7 +67,6 @@ def _create_vs_pool() -> oracledb.ConnectionPool:
         "increment": 1,
     }
 
-    # Parámetros para wallet (opcionales)
     if tns_admin:
         connect_kwargs["config_dir"] = tns_admin
     if wallet_location:
@@ -81,9 +80,7 @@ def _create_vs_pool() -> oracledb.ConnectionPool:
 
 
 def get_oracle_vs_pool() -> oracledb.ConnectionPool:
-    """
-    Devuelve el pool global para OracleVS (lo crea si no existe).
-    """
+    """Devuelve el pool global para OracleVS."""
     global _VS_POOL
     if _VS_POOL is None:
         _VS_POOL = _create_vs_pool()
@@ -93,20 +90,15 @@ def get_oracle_vs_pool() -> oracledb.ConnectionPool:
 def get_oracle_vs_conn() -> oracledb.Connection:
     """
     Devuelve una conexión viva para OracleVS.
-
-    - Usa el pool global.
-    - Reusa una conexión global (_VS_CONN) mientras siga viva.
-    - Si se cayó, la reacquiere del pool.
+    Reusa _VS_CONN mientras sirva; si no, la reacquiere del pool.
     """
     global _VS_CONN
 
-    # Si ya tenemos una conexión, verifica que siga viva
     if _VS_CONN is not None:
         try:
             _VS_CONN.ping()
             return _VS_CONN
         except oracledb.Error:
-            # si ya se murió, la cerramos y forzamos recreación
             try:
                 _VS_CONN.close()
             except Exception:
@@ -122,9 +114,7 @@ def get_oracle_vs_conn() -> oracledb.Connection:
 # Config RAG / Vector Store
 
 PROMO_VECTOR_TABLE = os.getenv("PROMO_VECTOR_TABLE", "PROMO_PROMOS_COSINE")
-PROMO_VECTOR_INDEX = os.getenv(
-    "PROMO_VECTOR_INDEX", "PROMO_PROMOS_IDX"
-)  # por ahora no lo usamos, pero queda listo
+PROMO_VECTOR_INDEX = os.getenv("PROMO_VECTOR_INDEX", "PROMO_PROMOS_IDX")
 
 # Utilidades generales
 
@@ -143,19 +133,18 @@ def _norm_bank(s: str) -> str:
     aliases = {
         "BANCOMER": "BBVA",
         "BBVA BANCOMER": "BBVA",
-        "CITIBANAMEX": "BANAMEX",  # opcional, si así guardas tus promos
+        "CITIBANAMEX": "BANAMEX",
     }
     return aliases.get(s_norm, s_norm)
 
 
 def parse_promo_doc(content: str) -> Optional[Dict[str, Any]]:
-    """Devuelve dict de promo o None. Tolera doble stringificación y bloques parciales."""
+    """Devuelve dict de promo o None."""
     if not isinstance(content, str) or not content.strip():
         return None
 
     txt = content.strip()
 
-    # Intenta parse directo
     for _ in range(2):
         try:
             obj = json.loads(txt)
@@ -167,7 +156,6 @@ def parse_promo_doc(content: str) -> Optional[Dict[str, Any]]:
         except Exception:
             break
 
-    # Último intento: extraer el primer bloque {...} balanceado (heurístico)
     m = re.search(r"\{.*\}", txt, flags=re.DOTALL)
     if m:
         try:
@@ -197,7 +185,6 @@ def is_valid_now(promo: Dict[str, Any], ref_iso: Optional[str] = None) -> bool:
                 return False
         return True
     except Exception:
-        # Si hay error en parseo, asumimos no válida
         return False
 
 
@@ -209,20 +196,16 @@ def faltante_para(minimo_carrito_mxn: float, monto: float) -> float:
 
 
 def _bank_label_for_message(banco: Optional[str]) -> str:
-    """
-    Devuelve cómo debe aparecer el banco en el mensaje.
-    Si es EMPTY, vacío o None, regresamos cadena vacía para usar un texto genérico.
-    """
+    """Devuelve etiqueta para mostrar en mensajes."""
     if not banco:
         return ""
     b = str(banco).strip().upper()
     if b in ("EMPTY", "GENERIC", "SIN_BANCO"):
         return ""
-    return banco  # dejamos el nombre tal cual (BBVA, HSBC, etc.)
+    return banco
 
 
-# Carga de promociones (sin JSONLoader para evitar splits)
-
+# Carga de promociones
 
 def load_promos_as_documents(data_dir: str) -> List[Document]:
     base = Path(data_dir)
@@ -270,7 +253,6 @@ def load_promos_as_documents(data_dir: str) -> List[Document]:
 
 # Embeddings + VectorStore
 
-
 def get_embeddings() -> OCIGenAIEmbeddings:
     embed_model = os.getenv("OCI_EMBED_MODEL", "cohere.embed-multilingual-light-v3.0")
     endpoint = os.getenv(
@@ -293,8 +275,7 @@ def build_oracle_vs(
     conn: Optional[oracledb.Connection] = None,
 ) -> OracleVS:
     """
-    Crea o reutiliza un vector store en Oracle 26ai usando OracleVS.
-    Usa una conexión proveniente del pool exclusivo de OracleVS.
+    Crea o reutiliza el vector store en Oracle 26ai.
     """
     if conn is None:
         conn = get_oracle_vs_conn()
@@ -302,16 +283,13 @@ def build_oracle_vs(
     table_name = PROMO_VECTOR_TABLE
 
     if rebuild_index:
-        # borrar tabla de vectores si existe
         try:
             with conn.cursor() as cur:
                 cur.execute(f'DROP TABLE "{table_name}" PURGE')
-            print(f"[oraclevs] Tabla {table_name} eliminada (si existía).")
-        except oracledb.DatabaseError as e:
-            # Si no existía, Oracle lanza ORA-00942; lo tratamos como warning
-            print(f"[oraclevs] DROP TABLE {table_name} falló (posible que no exista): {e}")
+            print(f"[oraclevs] Tabla {table_name} eliminada.")
+        except oracledb.DatabaseError:
+            print(f"[oraclevs] DROP TABLE {table_name} falló (posible que no exista).")
 
-        # crear tabla + insertar documentos con embeddings
         vs = OracleVS.from_documents(
             documents=docs,
             embedding=get_embeddings(),
@@ -319,22 +297,20 @@ def build_oracle_vs(
             table_name=table_name,
             distance_strategy=DistanceStrategy.COSINE,
         )
-        print(f"[oraclevs] Tabla {table_name} creada y poblada con embeddings.")
+        print(f"[oraclevs] Tabla {table_name} creada.")
         return vs
 
-    # usar tabla de vectores ya existente
     vs = OracleVS(
         client=conn,
         table_name=table_name,
         embedding_function=get_embeddings(),
         distance_strategy=DistanceStrategy.COSINE,
     )
-    print(f"[oraclevs] Usando tabla existente {table_name} en Oracle 26ai.")
+    print(f"[oraclevs] Usando tabla existente {table_name}.")
     return vs
 
 
-# LLM (OCI) + RetrievalQA
-
+# LLM + QA Chain
 
 def get_llm() -> ChatOCIGenAI:
     model_id = os.getenv("OCI_GENAI_MODEL_ID", "")
@@ -360,13 +336,12 @@ def build_qa_chain(vectorstore: OracleVS) -> RetrievalQA:
     Eres un asistente de promociones en la fase de pago de un e-commerce de ropa en México.
     Tienes una lista de promociones estructuradas (JSON).
     Con base en:
-    - banco de la tarjeta (BBVA, Santander, etc.)
-    - monto de la compra en MXN
+    - banco de la tarjeta
+    - monto de la compra
     - vigencia de la promoción
-    elige la promoción más adecuada. NO inventes condiciones que no estén en el contexto.
-    Responde en tono persuasivo, corto y claro, mencionando el beneficio y las condiciones principales.
-    Si no hay promoción aplicable, di que no hay, pero sugiere subir un poco el monto si aplica.
+    elige la mejor promoción aplicable.
     """
+
     prompt = ChatPromptTemplate.from_messages(
         [
             SystemMessagePromptTemplate.from_template(SYSTEM_PROMPT),
@@ -380,6 +355,7 @@ def build_qa_chain(vectorstore: OracleVS) -> RetrievalQA:
     retriever = vectorstore.as_retriever(
         search_type="similarity", search_kwargs={"k": 50}
     )
+
     qa_chain = RetrievalQA.from_chain_type(
         llm=llm,
         retriever=retriever,
@@ -389,9 +365,7 @@ def build_qa_chain(vectorstore: OracleVS) -> RetrievalQA:
     )
     return qa_chain
 
-
 # Selección determinista (a partir de source docs)
-
 
 def pick_best_and_next_promos(
     promos: List[Dict[str, Any]],
@@ -401,6 +375,11 @@ def pick_best_and_next_promos(
 ) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
     """
     Elige la 'mejor' promo que cumple monto y vigencia para el banco.
+    Ahora soporta:
+      - descuento_porcentaje
+      - descuento_fijo
+      - cashback_fijo
+      - msi
     """
     banco_norm = _norm_bank(banco)
     now_iso = now_iso or now_iso_utc()
@@ -411,27 +390,47 @@ def pick_best_and_next_promos(
     for p in promos:
         if not is_valid_now(p, now_iso):
             continue
+
         bancos = p.get("condiciones", {}).get("bancos", [])
         bancos_norm = {_norm_bank(x) for x in bancos if isinstance(x, str)}
         if banco_norm not in bancos_norm:
             continue
+
         min_req = p.get("condiciones", {}).get("minimo_carrito_mxn", 0) or 0
+
         if monto >= float(min_req):
             eligibles.append(p)
         else:
             candidatas_mas_arriba.append(p)
 
-    def score(p: Dict[str, Any]) -> Tuple[int, float, int]:
+    # --- NUEVO: soporte para score ampliado ---
+    def score(p: Dict[str, Any]) -> Tuple[int, float, float, int]:
+        """
+        Score ordena:
+          1) prioridad DESC
+          2) valor_porcentaje DESC (si aplica)
+          3) valor_fijo DESC (descuento_fijo / cashback_fijo)
+          4) meses_msi DESC
+        """
         prio = int(p.get("prioridad", 0) or 0)
         ben = p.get("beneficio", {}) or {}
-        pct = (
-            float(ben.get("valor", 0) or 0)
-            if (ben.get("tipo") == "descuento_porcentaje")
-            else 0.0
-        )
-        msi = int(ben.get("meses", 0) or 0) if (ben.get("tipo") == "msi") else 0
-        # Orden: prioridad DESC, porcentaje DESC, msi DESC
-        return (prio, pct, msi)
+        tipo = ben.get("tipo")
+
+        pct = 0.0
+        fijo = 0.0
+        meses = 0
+
+        if tipo == "descuento_porcentaje":
+            pct = float(ben.get("valor", 0) or 0)
+        elif tipo == "descuento_fijo":
+            fijo = float(ben.get("valor", 0) or 0)
+        elif tipo == "cashback_fijo":
+            fijo = float(ben.get("valor", 0) or 0)
+        elif tipo == "msi":
+            meses = int(ben.get("meses", 0) or 0)
+
+        return (prio, pct, fijo, meses)
+    # ----------------------------------------------------
 
     best = None
     if eligibles:
@@ -452,20 +451,28 @@ def pick_best_and_next_promos(
 
     return best, next_up
 
-
 def build_messages(
     best: Optional[Dict[str, Any]],
     next_up: Optional[Dict[str, Any]],
     monto: float,
     banco: str,
 ) -> Dict[str, Any]:
+    """
+    Construye los mensajes para current_promo y next_promo.
+    Ahora soporta:
+      - descuento_fijo
+      - cashback_fijo
+      además de:
+      - descuento_porcentaje
+      - msi
+    """
     if not best and not next_up:
         return {
             "current_promo": {
                 "promo_title": "Sin promoción",
                 "message": "No hay promociones vigentes para tu tarjeta en este momento.",
                 "meets_minimum": False,
-                "benefit": None,  # sin beneficio
+                "benefit": None,
             },
             "next_promo": {
                 "promo_title": "",
@@ -478,43 +485,54 @@ def build_messages(
             },
         }
 
-    # etiqueta amigable para el mensaje (oculta EMPTY)
     bank_label = _bank_label_for_message(banco)
 
-    # ======================
-    # Beneficio de la promo actual (best)
-    # ======================
+    # =========================================================
+    # BENEFICIO ACTUAL (best)
+    # =========================================================
     benefit_current: Optional[Dict[str, Any]] = None
     if best:
         ben = best.get("beneficio", {}) or {}
         tipo = ben.get("tipo")
         benefit_current = {"type": tipo}
 
+        # Soporte de beneficios nuevos
         if tipo == "descuento_porcentaje":
-            try:
-                benefit_current["percentage"] = float(ben.get("valor", 0) or 0)
-            except (TypeError, ValueError):
-                benefit_current["percentage"] = 0.0
-        elif tipo == "msi":
-            try:
-                benefit_current["months"] = int(ben.get("meses", 0) or 0)
-            except (TypeError, ValueError):
-                benefit_current["months"] = 0
+            benefit_current["percentage"] = float(ben.get("valor", 0) or 0)
 
-    # current
+        elif tipo == "msi":
+            benefit_current["months"] = int(ben.get("meses", 0) or 0)
+
+        elif tipo == "descuento_fijo":
+            benefit_current["amount"] = float(ben.get("valor", 0) or 0)
+
+        elif tipo == "cashback_fijo":
+            benefit_current["cashback"] = float(ben.get("valor", 0) or 0)
+
+    # current message
     if best:
         ben = best.get("beneficio", {}) or {}
-        min_req = float(
-            best.get("condiciones", {}).get("minimo_carrito_mxn", 0) or 0
-        )
+        min_req = float(best.get("condiciones", {}).get("minimo_carrito_mxn", 0) or 0)
         meets = monto >= min_req
 
-        if ben.get("tipo") == "descuento_porcentaje":
+        tipo = ben.get("tipo")
+
+        # ----- mensajes actualizados para nuevos tipos -----
+        if tipo == "descuento_porcentaje":
             benefit_str = f"{int(ben.get('valor', 0))}% de descuento"
-        elif ben.get("tipo") == "msi":
+
+        elif tipo == "msi":
             benefit_str = f"{int(ben.get('meses', 0))} MSI"
+
+        elif tipo == "descuento_fijo":
+            benefit_str = f"${int(ben.get('valor', 0))} de descuento"
+
+        elif tipo == "cashback_fijo":
+            benefit_str = f"${int(ben.get('valor', 0))} de cashback"
+
         else:
             benefit_str = "Beneficio activo"
+        # ----------------------------------------------------
 
         if bank_label:
             msg_current = (
@@ -522,7 +540,6 @@ def build_messages(
                 f"Aplica en compras desde ${int(min_req)}."
             )
         else:
-            # caso banco vacío / no compartido
             msg_current = (
                 f"Aprovecha {benefit_str} pagando con tu método de pago. "
                 f"Aplica en compras desde ${int(min_req)}."
@@ -532,50 +549,56 @@ def build_messages(
             "promo_title": best.get("titulo", "Promoción"),
             "message": msg_current,
             "meets_minimum": bool(meets),
-            # 👇 info estructurada del beneficio
             "benefit": benefit_current,
         }
     else:
         current = {
             "promo_title": "Sin promoción",
-            "message": "No hay promociones vigentes para tu tarjeta en este momento.",
+            "message": "No hay promociones vigentes para tu tarjeta.",
             "meets_minimum": False,
             "benefit": None,
         }
 
-    # ======================
-    # Beneficio de la siguiente promo (next_up)
-    # ======================
+    # =========================================================
+    # BENEFICIO SIGUIENTE (next_up)
+    # =========================================================
     benefit_next: Optional[Dict[str, Any]] = None
     if next_up:
         ben_next = next_up.get("beneficio", {}) or {}
         tipo_next = ben_next.get("tipo")
         benefit_next = {"type": tipo_next}
-        if tipo_next == "descuento_porcentaje":
-            try:
-                benefit_next["percentage"] = float(ben_next.get("valor", 0) or 0)
-            except (TypeError, ValueError):
-                benefit_next["percentage"] = 0.0
-        elif tipo_next == "msi":
-            try:
-                benefit_next["months"] = int(ben_next.get("meses", 0) or 0)
-            except (TypeError, ValueError):
-                benefit_next["months"] = 0
 
-    # next
+        if tipo_next == "descuento_porcentaje":
+            benefit_next["percentage"] = float(ben_next.get("valor", 0) or 0)
+
+        elif tipo_next == "msi":
+            benefit_next["months"] = int(ben_next.get("meses", 0) or 0)
+
+        elif tipo_next == "descuento_fijo":
+            benefit_next["amount"] = float(ben_next.get("valor", 0) or 0)
+
+        elif tipo_next == "cashback_fijo":
+            benefit_next["cashback"] = float(ben_next.get("valor", 0) or 0)
+
     if next_up:
-        min_up = float(
-            next_up.get("condiciones", {}).get("minimo_carrito_mxn", 0) or 0
-        )
+        min_up = float(next_up.get("condiciones", {}).get("minimo_carrito_mxn", 0) or 0)
         falt = faltante_para(min_up, monto)
         ben = next_up.get("beneficio", {}) or {}
+        tipo = ben.get("tipo")
 
-        if ben.get("tipo") == "descuento_porcentaje":
+        # ----- mensajes actualizados para nuevos tipos -----
+        if tipo == "descuento_porcentaje":
             benefit_str = f"{int(ben.get('valor', 0))}%"
-        elif ben.get("tipo") == "msi":
+
+        elif tipo == "msi":
             benefit_str = f"{int(ben.get('meses', 0))} MSI"
-        else:
-            benefit_str = "mejor beneficio"
+
+        elif tipo == "descuento_fijo":
+            benefit_str = f"${int(ben.get('valor', 0))}"
+
+        elif tipo == "cashback_fijo":
+            benefit_str = f"${int(ben.get('valor', 0))}"
+        # ---------------------------------------------------
 
         next_block = {
             "promo_title": next_up.get("titulo", ""),
@@ -584,7 +607,6 @@ def build_messages(
                 f"Te faltan ${int(falt)} para alcanzar {benefit_str}. "
                 f"Agrega algo más para aplicar."
             ),
-            # 👇 info estructurada del beneficio de la siguiente promo
             "benefit": benefit_next,
         }
     else:
@@ -595,6 +617,7 @@ def build_messages(
             "benefit": None,
         }
 
+    # mensaje combinado (sin cambios)
     mix = {
         "message": (
             f"{current['message']} "
@@ -609,7 +632,9 @@ def build_messages(
     }
 
 
+# =========================================================
 # API principal
+# =========================================================
 
 class PromoRAG:
     def __init__(self, data_dir: Optional[str] = None):
@@ -618,22 +643,15 @@ class PromoRAG:
         self.qa_chain: Optional[RetrievalQA] = None
 
     def _ensure_initialized(self) -> None:
-        """
-        Garantiza que el RAG esté listo.
-        Si todavía no está inicializado, lo inicializa sin reconstruir el índice.
-        Además, se asegura de que el client de OracleVS tenga una conexión viva del pool.
-        """
         if self.qa_chain is None or self.vectorstore is None:
             self.initialize(rebuild_index=False)
             return
 
-        # Intentar asegurar que la conexión de OracleVS esté viva
         try:
             conn = get_oracle_vs_conn()
             if hasattr(self.vectorstore, "client"):
                 self.vectorstore.client = conn
-        except Exception as e:
-            print(f"[promos_rag] Error al refrescar conexión OracleVS en _ensure_initialized: {e}")
+        except Exception:
             self.initialize(rebuild_index=False)
 
     def initialize(
@@ -641,9 +659,6 @@ class PromoRAG:
         rebuild_index: bool = False,
         conn: Optional[oracledb.Connection] = None,
     ) -> None:
-        """
-        Inicializa el RAG de promociones.
-        """
         docs = load_promos_as_documents(self.data_dir)
         self.vectorstore = build_oracle_vs(
             docs, rebuild_index=rebuild_index, conn=conn
@@ -654,12 +669,11 @@ class PromoRAG:
     def promotor(self, monto: float, banco: str) -> str:
         """
         Consulta el RAG y arma la respuesta de promociones.
-        Incluye reintento si la conexión de OracleVS se cayó (DPY-1001).
+        Ahora soporta nuevos tipos de beneficios mediante pick_best_and_next_promos
+        y build_messages.
         """
-        # Aseguramos que haya QA chain y vectorstore
         self._ensure_initialized()
 
-        # Si el usuario no comparte banco, usamos un flag lógico "EMPTY"
         raw_bank = banco or ""
         if raw_bank.strip() == "":
             banco_norm = "EMPTY"
@@ -671,28 +685,20 @@ class PromoRAG:
         query = f"""
         Fecha actual (UTC): {hoy}
         Cliente pagando {monto} MXN con tarjeta {banco_norm}.
-        Selecciona promoción actual y su posible siguiente (si no alcanza):
+        Selecciona promoción actual y su posible siguiente.
         """
 
-        # Antes de invocar la cadena, aseguramos que el vectorstore use una conexión viva
         try:
             if self.vectorstore is not None:
                 self.vectorstore.client = get_oracle_vs_conn()
-        except Exception as e:
-            print(f"[promos_rag] Error asegurando conexión OracleVS antes de consulta: {e}")
-            # Reintentar inicializando el RAG (reconstruye referencias con una conexión nueva)
+        except Exception:
             self.initialize(rebuild_index=False)
 
-        # Intento con manejo de DPY-1001 (not connected)
         try:
             result = self.qa_chain.invoke({"query": query})
         except RuntimeError as e:
             msg = str(e)
             if "DPY-1001" in msg or "not connected to database" in msg:
-                print(
-                    "[promos_rag] Conexión OracleVS caducada, re-inicializando RAG con pool..."
-                )
-                # Invalidamos la conexión global y reacquire del pool
                 global _VS_CONN
                 try:
                     if _VS_CONN is not None:
@@ -708,34 +714,28 @@ class PromoRAG:
 
         source_docs = result.get("source_documents") or []
 
-        # Parse determinista a partir de las fuentes
         promos_del_banco: List[Dict[str, Any]] = []
         for d in source_docs:
             promo = parse_promo_doc(getattr(d, "page_content", ""))
             if not promo:
                 continue
+
             bancos = promo.get("condiciones", {}).get("bancos", [])
             bancos_norm = {_norm_bank(x) for x in bancos if isinstance(x, str)}
+
             if banco_norm in bancos_norm:
                 promos_del_banco.append(promo)
 
-        # Si por alguna razón el retriever no trajo promos del banco, devolvemos fallback
         if not promos_del_banco:
             return json.dumps(
                 {
                     "current_promo": {
                         "promo_title": "Sin promoción",
-                        "message": "No hay promociones vigentes para tu tarjeta en este momento.",
+                        "message": "No hay promociones vigentes para tu tarjeta.",
                         "meets_minimum": False,
                     },
-                    "next_promo": {
-                        "promo_title": "",
-                        "required_amount": 0,
-                        "message": "",
-                    },
-                    "mix_message": {
-                        "message": "Por ahora no contamos con promociones activas para tu tarjeta."
-                    },
+                    "next_promo": {"promo_title": "", "required_amount": 0, "message": ""},
+                    "mix_message": {"message": "Por ahora no contamos con promociones activas."},
                 },
                 ensure_ascii=False,
             )
@@ -744,30 +744,70 @@ class PromoRAG:
             promos_del_banco, monto, banco_norm, hoy
         )
         payload = build_messages(best, next_up, monto, banco_norm)
+
         return json.dumps(payload, ensure_ascii=False)
 
 
-# Runner local
+# Runner local opcional
 
 def main():
+    """
+    Runner local para probar el RAG con una variedad de promociones
+    y diferentes bancos. Cubre:
+      - descuento_porcentaje
+      - msi
+      - descuento_fijo
+      - cashback_fijo
+      - casos sin banco
+      - montos bajo, medio y alto
+    """
+
+    print("\n===============================")
+    print("  INICIALIZANDO RAG DE PROMOS  ")
+    print("===============================\n")
+
     rag = PromoRAG()
-    # Primera vez: rebuild_index=True para crear tabla de vectores en 26ai.
-    rag.initialize(rebuild_index=True)
-    # Pruebas rápidas
-    tests = [
-        (500, "BBVA"),
-        (880, "BBVA"),
-        (910, "BBVA"),
-        (1250, "BBVA"),
-        (1790, "BBVA"),
-        (2600, "HSBC"),
-        (2400, "Scotiabank"),
-        (2300, "CITIBANAMEX"),
-        (3000, "AMERICAN EXPRESS"),
+    rag.initialize(rebuild_index=True)   # Usa el índice actual
+
+    # --- BANCOS DEFINIDOS EN LAS PROMOS ---
+    bancos = [
+        "BBVA",
+        "HSBC",
+        "SCOTIABANK",
+        "BANAMEX",
+        "AMERICAN EXPRESS",
+        "",  # Caso sin banco
     ]
-    for monto, banco in tests:
-        print("\n=== Test:", banco, monto, "===")
-        print(rag.promotor(monto, banco))
+
+    # --- MONTOS ESTRATÉGICOS PARA PROBAR MÍNIMOS ---
+    montos = [
+        100,     # Muy bajo (ninguna promo aplica)
+        480,     # Cerca de mínimos bajos
+        790,     # Cerca de umbrales medios
+        900,     # Justo en rango de porcentaje
+        1200,    # Aplica muchas promos
+        1500,    # Umbral para varias
+        2000,    # Alta probabilidad de MSI
+        2500,    # Cashback y descuentos altos
+        3000,    # Máximos
+    ]
+
+    print("\n=== INICIANDO TESTS AUTOMÁTICOS ===\n")
+
+    for banco in bancos:
+        for monto in montos:
+            print("--------------------------------------------------------------")
+            print(f"BANCO: {banco or 'SIN BANCO'} | MONTO: {monto}")
+            try:
+                respuesta = rag.promotor(monto, banco)
+                print("Respuesta:")
+                print(respuesta)
+            except Exception as e:
+                print(f"ERROR procesando {banco} / {monto}: {e}")
+
+    print("\n========================================")
+    print("  TESTING FINALIZADO - REVISA RESULTADOS")
+    print("========================================\n")
 
 
 if __name__ == "__main__":
