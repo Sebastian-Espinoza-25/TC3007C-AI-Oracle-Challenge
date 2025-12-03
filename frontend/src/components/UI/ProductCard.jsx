@@ -4,27 +4,43 @@ import { CSS } from '@dnd-kit/utilities';
 import CustomButton from './CustomButton';
 import imagen from '../../assets/react.svg';
 
-const ProductCard = ({ product, onAddToCart, isOverlay, isLoading }) => {
+const ProductCard = ({ product, onAddToCart, isOverlay, isLoading, draggable = true }) => {
   // Guard clause to avoid rendering when product is missing or undefined
   if (!product) return null;
 
+  // Build a stable draggable ID. Avoid fallback strings since that breaks the DragOverlay.
+  const stableId = product.external_article_id || product.id;
+  if (!stableId) {
+    console.warn("Product without valid ID detected:", product);
+  }
+
   // Make the card draggable and attach product data so the drop target can read it
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: product.external_article_id || product.id || 'producto-sin-id',
-    data: product,
+  const draggableConfig = useDraggable({
+    id: stableId,
+    // Passing the whole product object can break DnD serialization internally.
+    // Wrap it inside another object to avoid unexpected data shape bugs.
+    data: { product },
   });
+
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    draggable
+      ? draggableConfig
+      : { attributes: {}, listeners: {}, setNodeRef: () => {}, transform: null, isDragging: false };
 
   // Use dnd-kit transform to move the element while dragging
   const style = {
     transform: CSS.Translate.toString(transform),
+    // When dragging the base card, hide it but keep layout: avoid disappearance glitches
     visibility: isDragging && !isOverlay ? 'hidden' : 'visible',
     transition: 'box-shadow 0.2s, transform 0.2s',
-    cursor: isOverlay ? 'grabbing' : 'grab',
-    zIndex: isDragging && !isOverlay ? 1 : 'auto',
+    cursor: isOverlay ? 'grabbing' : draggable ? 'grab' : 'default',
+    zIndex: isOverlay ? 9999 : isDragging ? 1 : 'auto',
     boxShadow: isDragging && !isOverlay
-      ? '0 10px 20px rgba(0, 0, 0, 0.0)'
+      ? '0 10px 20px rgba(0, 0, 0, 0.15)'
       : '0 4px 6px rgba(0, 0, 0, 0.1)',
     willChange: 'transform',
+    // Avoid flickering when the overlay appears
+    position: isOverlay ? 'relative' : 'static',
   };
 
   // Normalize product fields so the card works with different backend shapes
@@ -36,6 +52,7 @@ const ProductCard = ({ product, onAddToCart, isOverlay, isLoading }) => {
 
   const numericPrice = parseFloat(price) || 0;
   const displayPrice = `$${Math.round(numericPrice)}`;
+
   // Strip a leading ampersand that sometimes appears in the raw data
   const displayName = name.startsWith('&') ? name.substring(1).trim() : name;
 
@@ -47,8 +64,8 @@ const ProductCard = ({ product, onAddToCart, isOverlay, isLoading }) => {
     <div
       ref={setNodeRef}
       // Attach drag listeners only on the base card, not on the overlay clone
-      {...(!isOverlay ? listeners : {})}
-      {...(!isOverlay ? attributes : {})}
+      {...(draggable && !isOverlay ? listeners : {})}
+      {...(draggable && !isOverlay ? attributes : {})}
       style={style}
       className={`w-full rounded-xl overflow-hidden bg-white shadow-lg transition-all duration-200 
                   ${!isOverlay ? 'hover:shadow-xl' : 'shadow-none'}`}
@@ -81,7 +98,7 @@ const ProductCard = ({ product, onAddToCart, isOverlay, isLoading }) => {
               maskImage: 'linear-gradient(to right, black 90%, transparent 100%)',
             }}
           >
-            {displayName + ' ' + color } 
+            {displayName + ' ' + color}
           </h3>
         </a>
 

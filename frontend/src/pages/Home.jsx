@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useNavigate } from "react-router-dom";
 import ProductCard from "../components/UI/ProductCard";
 import heroBannerImage from "../assets/banner.jpg";
 import { useCart } from "../contexts/CartContext";
-import { useNavigate } from "react-router-dom";
 import Loader from "../components/UI/Loader";
 import Pagination from "../components/UI/Pagination";
+import { normalizeProduct } from "../utils/normalizer";
 
 const LIMIT = 20;
 
@@ -40,19 +40,16 @@ const Home = () => {
 
   /* ------------------------------------------------------
      FETCH de productos con paginación
-     Se adapta según login + preferencias
   ------------------------------------------------------ */
   const fetchPageProducts = async () => {
     setIsLoading(true);
 
-    let params = new URLSearchParams({
+    const params = new URLSearchParams({
       limit: LIMIT,
       offset: (page - 1) * LIMIT,
     });
 
-    // -------------------------
-    // SI ESTÁ LOGUEADO Y TIENE PREFERENCIAS → USAR FILTROS
-    // -------------------------
+    // Si está logueado y tiene preferencias → usar filtros
     const hasPreferences =
       isLoggedIn && Array.isArray(userPreferences) && userPreferences.length > 0;
 
@@ -83,9 +80,13 @@ const Home = () => {
 
       const data = await response.json();
 
-      setProducts(data.items || []);
-      setTotalPages(Math.ceil((data.total || 1) / LIMIT));
+      // AQUÍ aplicamos la normalización universal
+      const normalized = (data.items || []).map((item, i) =>
+        normalizeProduct(item, i)
+      );
 
+      setProducts(normalized);
+      setTotalPages(Math.ceil((data.total || 1) / LIMIT));
     } catch (error) {
       console.error("Error fetching paginated products:", error);
       setProducts([]);
@@ -96,11 +97,9 @@ const Home = () => {
 
   /* ------------------------------------------------------
      Cuando cambian preferencias → Reiniciar a página 1
-     PERO SOLO SI ESTÁ LOGUEADO
   ------------------------------------------------------ */
   useEffect(() => {
-    if (!isLoggedIn) return; // no hacer nada si no está logueado
-
+    if (!isLoggedIn) return;
     if (userPreferences.length) {
       setPage(1);
       fetchPageProducts();
@@ -128,7 +127,8 @@ const Home = () => {
       await addItem({
         productId: id,
         qty: 1,
-        onUnauthenticated: () => setTimeout(() => navigate("/auth/login"), 5000),
+        onUnauthenticated: () =>
+          setTimeout(() => navigate("/auth/login"), 5000),
       });
     } finally {
       setLoadingProducts((prev) => {
@@ -174,7 +174,10 @@ const Home = () => {
       <section className="mb-12 mt-10">
         <div
           className="relative h-[400px] bg-gray-700 rounded-xl overflow-hidden"
-          style={{ backgroundImage: `url(${heroBannerImage})`, backgroundSize: "cover" }}
+          style={{
+            backgroundImage: `url(${heroBannerImage})`,
+            backgroundSize: "cover",
+          }}
         >
           <div className="absolute inset-0 bg-black opacity-40"></div>
           <div className="absolute bottom-1/4 left-8 text-white max-w-xl p-4">
@@ -200,8 +203,9 @@ const Home = () => {
             ¿No sabes qué ponerte?
           </h2>
           <p className="text-lg mb-8 max-w-2xl mx-auto">
-            Usa nuestro asistente de IA avanzado. Sube una foto, describe tu necesidad o incluso envía una
-            nota de voz, y obtén recomendaciones personalizadas al instante.
+            Usa nuestro asistente de IA avanzado. Sube una foto, describe tu
+            necesidad o incluso envía una nota de voz, y obtén recomendaciones
+            personalizadas al instante.
           </p>
           <button
             onClick={handleTryAssistant}
@@ -221,7 +225,7 @@ const Home = () => {
         <div className={productGridClasses}>
           {products.map((product) => (
             <ProductCard
-              key={product.external_article_id}
+              key={product.id}
               product={product}
               onAddToCart={() => handleAddToCart(product)}
               isLoading={loadingProducts.has(product.id)}
@@ -229,7 +233,11 @@ const Home = () => {
           ))}
         </div>
 
-        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+        />
       </section>
     </div>
   );
