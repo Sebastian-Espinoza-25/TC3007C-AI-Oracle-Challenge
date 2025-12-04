@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { normalizeProduct } from "../utils/normalizer"; // ⬅ UNIVERSAL
+import { normalizeProduct } from "../utils/normalizer";
+import { useCart } from "../contexts/CartContext";
 import ProductCard from "../components/UI/ProductCard";
 import FilterBar from "../components/UI/FilterBar";
 import Pagination from "../components/UI/Pagination";
@@ -55,6 +56,9 @@ const buildURLFromFilters = (filters) => {
 const Catalog = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { addItem } = useCart(); // ⬅ NECESARIO
+
+  const [loadingProducts, setLoadingProducts] = useState(new Set());
 
   const searchParams = new URLSearchParams(location.search);
   const page = Number(searchParams.get("page")) || 1;
@@ -92,7 +96,6 @@ const Catalog = () => {
       const res = await fetch(url);
       const data = await res.json();
 
-      // ⬅ USA NORMALIZADOR UNIVERSAL
       setProducts((data.items || []).map((item, i) => normalizeProduct(item, i)));
 
       const totalItems = Number(data.total) || (data.items?.length || 0);
@@ -108,6 +111,32 @@ const Catalog = () => {
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  /* -------------------------------------------------------
+        ADD TO CART (CORREGIDO)
+  ------------------------------------------------------- */
+  const handleAddToCart = async (product) => {
+    const id = product.id;
+
+    if (loadingProducts.has(id)) return;
+
+    setLoadingProducts((prev) => new Set(prev).add(id));
+
+    try {
+      await addItem({
+        productId: id,
+        qty: 1,
+        onUnauthenticated: () =>
+          setTimeout(() => navigate("/auth/login"), 5000),
+      });
+    } finally {
+      setLoadingProducts((prev) => {
+        const updated = new Set(prev);
+        updated.delete(id);
+        return updated;
+      });
+    }
+  };
 
   /* -------------------------------------------------------
       Regla 1:
@@ -184,9 +213,6 @@ const Catalog = () => {
 
   if (isLoading) return <p className="p-6">Cargando...</p>;
 
-  /* -------------------------------------------------------
-      RENDER
-  ------------------------------------------------------- */
   return (
     <div className="mt-10">
       <FilterBar
@@ -199,7 +225,7 @@ const Catalog = () => {
         colours={filtersData.colours}
         sortOptions={[
           { value: "price_asc", label: "Precio: Menor a Mayor" },
-          { value: "price_desc", label: "Precio: Mayor a Menor" },
+          { value: "price_desc", label: "Precio: Mayor a Mayor" },
         ]}
         filters={filters}
         onChangeFilters={handleFiltersChange}
@@ -207,7 +233,12 @@ const Catalog = () => {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-6">
         {products.map((p) => (
-          <ProductCard key={p.id} product={p} />
+          <ProductCard
+            key={p.id}
+            product={p}
+            onAddToCart={() => handleAddToCart(p)}
+            isLoading={loadingProducts.has(p.id)}
+          />
         ))}
       </div>
 
