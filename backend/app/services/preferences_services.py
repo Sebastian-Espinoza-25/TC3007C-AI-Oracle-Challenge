@@ -2,24 +2,78 @@
 from typing import List, Dict
 from flask import current_app
 
+NORMALIZATION_MAP = {
+    "COLOUR": {
+        "Unknown": "Unknown",
+        "Undefined": "Unknown",
+        "Mole": "Brown",
+        "Khaki Green": "Green",
+        "Yellowish Green": "Green",
+        "Bluish Green": "Blue",
+        "Lilac Purple": "Purple",
+    },
+    "GARMENT_GROUP": {
+        "Under-, Nightwear": "Nightwear",
+        "Jersey Basic": "Jersey",
+        "Jersey Fancy": "Jersey",
+        "Knitwear": "Knitwear",
+        "Dressed": "Dresses",
+        "Dresses Ladies": "Dresses",
+        "Dresses/Skirts Girls": "Dresses",
+        "Trousers Denim": "Trousers",
+        "Special Offers": "Other",
+        "Unknown": "Other",
+    },
+    "DEPARTMENT": {
+        "Men Other 2": "Men Other",
+        "Men Other": "Men Other",
+        "Ladies Other": "Ladies Other",
+        "Basics": "Basics",
+        "Basic 1": "Basics",
+        "Jersey": "Jersey",
+        "Jersey Fancy": "Jersey",
+        "Jersey Basic": "Jersey",
+        "Boots": "Shoes",
+        "Divided Shoes": "Shoes",
+        "Kids & Baby Shoes": "Shoes",
+    },
+    "SECTION": {
+        "Men Other 2": "Men Other",
+        "Men Other": "Men Other",
+        "Ladies Other": "Ladies Other",
+        "Mens Outerwear": "Outerwear",
+        "Kids Outerwear": "Outerwear",
+        "Womens Jackets": "Outerwear",
+    },
+    "PRODUCT_GROUP": {
+        "Garment Upper Body": "Upper Body",
+        "Garment Lower Body": "Lower Body",
+        "Garment Full Body": "Full Body",
+        "Underwear/Nightwear": "Nightwear",
+        "Nightwear": "Nightwear",
+        "Interior Textile": "Home",
+        "Furniture": "Home",
+    }
+}
+
 FACETS = ("GENDER", "DEPARTMENT", "PRODUCT_GROUP", "SECTION", "GARMENT_GROUP", "COLOUR")
 
 ONBOARDING_WEIGHTS = {
-    "GENDER": 2.0,
-    "DEPARTMENT": 1.5,
-    "PRODUCT_GROUP": 1.0,
-    "SECTION": 0.6,
-    "GARMENT_GROUP": 0.5,
-    "COLOUR": 0.3,
+    "GENDER": 1,
+    "DEPARTMENT": 1,
+    "PRODUCT_GROUP": 1,
+    "SECTION": 1,
+    "GARMENT_GROUP": 1,
+    "COLOUR": 1,
 }
 
 PURCHASE_WEIGHTS = {
-    "GENDER": 3.0,
-    "DEPARTMENT": 2.5,
-    "PRODUCT_GROUP": 2.0,
-    "SECTION": 1.5,
-    "GARMENT_GROUP": 1.0,
-    "COLOUR": 0.5,
+    "GENDER": 1.0,
+    "DEPARTMENT": 1,
+    "PRODUCT_GROUP": 1,
+    "SECTION": 1,
+    "GARMENT_GROUP": 1,
+    "COLOUR": 1,
 }
 
 MERGE_SQL = """
@@ -52,9 +106,20 @@ def _infer_gender(row: Dict) -> str | None:
 
 def _rows_for_article(user_id: int, prod: Dict, weights: Dict[str, float]) -> List[Dict]:
     out: List[Dict] = []
+
+    # --- 1. Género inferido ---
     g = _infer_gender(prod)
     if g:
-        out.append({"user_id": user_id, "facet": "GENDER", "key_text": g, "inc": float(weights["GENDER"])})
+        norm_g = _normalize_value("GENDER", g)
+        if norm_g:
+            out.append({
+                "user_id": user_id,
+                "facet": "GENDER",
+                "key_text": norm_g,
+                "inc": float(weights["GENDER"])
+            })
+
+    # --- 2. Otras facetas con normalización ---
     mapping = {
         "DEPARTMENT":    prod.get("department_name"),
         "PRODUCT_GROUP": prod.get("product_group_name"),
@@ -62,10 +127,20 @@ def _rows_for_article(user_id: int, prod: Dict, weights: Dict[str, float]) -> Li
         "GARMENT_GROUP": prod.get("garment_group_name"),
         "COLOUR":        prod.get("perceived_colour_master_name"),
     }
-    for facet, key in mapping.items():
-        if key and facet in weights:
-            out.append({"user_id": user_id, "facet": facet, "key_text": key, "inc": float(weights[facet])})
+
+    for facet, value in mapping.items():
+        if value and facet in weights:
+            norm_value = _normalize_value(facet, value)
+            if norm_value:
+                out.append({
+                    "user_id": user_id,
+                    "facet": facet,
+                    "key_text": norm_value,
+                    "inc": float(weights[facet])
+                })
+
     return out
+
 
 def _fetch_products_by_ids(pool, article_ids: List[str]) -> List[Dict]:
     if not article_ids:
@@ -173,3 +248,31 @@ def reset_user_profile(user_id: int) -> int:
             cur.execute("DELETE FROM user_pref_kv WHERE user_id = :1", [int(user_id)])
         conn.commit()
     return 1
+
+def _normalize_value(facet: str, value: str) -> str:
+    if not value:
+        return None
+
+    value = value.strip()
+
+    # Aplicar mapa de normalización
+    mapping = NORMALIZATION_MAP.get(facet, {})
+    if value in mapping:
+        return mapping[value]
+
+    # Normalizaciones generales
+    low = value.lower()
+
+    # Combinar plurales / singulares
+    if low.endswith("s") and low[:-1].title() in mapping:
+        return low[:-1].title()
+
+    # Combinar variantes “Other”
+    if "other" in low:
+        return "Other"
+
+    # Combinar variantes “Unknown”
+    if "unknown" in low or "undefined" in low:
+        return "Unknown"
+
+    return value
