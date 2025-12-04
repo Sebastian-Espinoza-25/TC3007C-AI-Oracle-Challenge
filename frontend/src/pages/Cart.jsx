@@ -30,7 +30,6 @@ export function ProductCard({ product, onAdded }) {
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
 
-  // Why this map exists
   // Backend can send article_id or id depending on source, so this normalizes the identifier
   const articleId = product.article_id ?? product.id;
 
@@ -203,7 +202,6 @@ function PromoSidebar({ appliedPromo, setAppliedPromo }) {
     "Citibanamex",
   ];
 
-  // Why this guard exists
   // Promo calls do not make sense without user session and at least one item in the cart
   const canFetchPromo = token && cart && cart.items.length > 0;
 
@@ -258,6 +256,7 @@ function PromoSidebar({ appliedPromo, setAppliedPromo }) {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
+          bank: value,
           brand: value,
           type: "card",
           last4: "0000",
@@ -299,8 +298,7 @@ function PromoSidebar({ appliedPromo, setAppliedPromo }) {
         );
       }
 
-      // Why bank is stored on appliedPromo
-      // Cart summary needs this info to describe MSI promotions clearly without hitting backend again
+      // Cart summary needs bank info without hitting backend again
       const applied = {
         ...data,
         bank: bank || promoData?.bank_name || null,
@@ -320,10 +318,27 @@ function PromoSidebar({ appliedPromo, setAppliedPromo }) {
   const hasCurrentPromo = !!currentPromo && currentPromo.meets_minimum;
   const promoAlreadyApplied = !!appliedPromo;
 
-  // Why this flag exists
   // This prevents new backend calls once a promo is already applied or when user has not reached the minimum
   const isApplyDisabled =
     !hasCurrentPromo || applying || promoAlreadyApplied;
+
+  // ====== Info de beneficio aplicado (para mensajes explícitos) ======
+  const appliedBenefit = appliedPromo?.applied_promo?.benefit;
+  const appliedType = appliedBenefit?.type;
+
+  const isCashbackApplied = appliedType === "cashback_fijo";
+  const isPercentDiscountApplied = appliedType === "descuento_porcentaje";
+  const isFixedDiscountApplied = appliedType === "descuento_fijo";
+
+  const cashbackAmount =
+    isCashbackApplied && appliedBenefit?.cashback
+      ? Number(appliedBenefit.cashback) || 0
+      : 0;
+
+  const percentValue =
+    isPercentDiscountApplied && appliedBenefit?.percentage
+      ? Number(appliedBenefit.percentage) || 0
+      : 0;
 
   return (
     <aside className="rounded-xl bg-white p-5 shadow-lg h-fit">
@@ -431,13 +446,48 @@ function PromoSidebar({ appliedPromo, setAppliedPromo }) {
                 onClick={isApplyDisabled ? undefined : handleApplyPromo}
               />
 
-              {appliedPromo?.discount_amount > 0 && (
+              {/* Mensajes de resultado una vez aplicada la promo */}
+              {appliedPromo?.discount_amount > 0 &&
+                !isCashbackApplied && (
+                  <p className="mt-2 text-[11px] text-emerald-700">
+                    {isPercentDiscountApplied ? (
+                      <>
+                        Descuento aplicado:{" "}
+                        <b>{percentValue}%</b>{" "}
+                        equivalente a{" "}
+                        <b>
+                          <Price value={appliedPromo.discount_amount} />
+                        </b>
+                        .
+                      </>
+                    ) : isFixedDiscountApplied ? (
+                      <>
+                        Descuento aplicado:{" "}
+                        <b>
+                          <Price value={appliedPromo.discount_amount} />
+                        </b>{" "}
+                        directo a tu total.
+                      </>
+                    ) : (
+                      <>
+                        Descuento aplicado:{" "}
+                        <b>
+                          <Price value={appliedPromo.discount_amount} />
+                        </b>
+                        .
+                      </>
+                    )}
+                  </p>
+                )}
+
+              {isCashbackApplied && cashbackAmount > 0 && (
                 <p className="mt-2 text-[11px] text-emerald-700">
-                  Descuento aplicado:{" "}
+                  Cashback estimado:{" "}
                   <b>
-                    <Price value={appliedPromo.discount_amount} />
-                  </b>
-                  .
+                    <Price value={cashbackAmount} />
+                  </b>{" "}
+                  que se abonará a tu tarjeta
+                  {appliedPromo.bank ? ` ${appliedPromo.bank}` : ""} después de la compra. El total a pagar no cambia.
                 </p>
               )}
             </>
@@ -448,7 +498,7 @@ function PromoSidebar({ appliedPromo, setAppliedPromo }) {
   );
 }
 
-// Summary card on the right side, including totals and possible MSI info
+// Summary card on the right side, including totals and possible MSI / cashback info
 function CartSummary({ appliedPromo }) {
   const { cart, clearCart } = useCart();
   const [busy, setBusy] = useState(false);
@@ -456,26 +506,45 @@ function CartSummary({ appliedPromo }) {
 
   const shipping = 0;
 
-  const benefit = appliedPromo?.beneficio;
-  const type = benefit?.tipo;
-  const isMSI = type === "msi";
-
   const rawBank = appliedPromo?.bank;
   const bankName =
     rawBank && rawBank !== "EMPTY" ? rawBank : null;
+
+  const applied = appliedPromo?.applied_promo;
+  const benefit = applied?.benefit;
+
+  const type = benefit?.type;
+  const isMSI = type === "msi";
+  const isCashback = type === "cashback_fijo";
+  const isPercentDiscount = type === "descuento_porcentaje";
+  const isFixedDiscount = type === "descuento_fijo";
 
   const discountAmount = Number(appliedPromo?.discount_amount ?? 0) || 0;
   const backendFinal = Number(appliedPromo?.final_amount);
   const hasBackendFinal = !Number.isNaN(backendFinal);
 
+  const cashbackAmount =
+    isCashback && benefit?.cashback
+      ? Number(benefit.cashback) || 0
+      : 0;
+
+  const percentValue =
+    isPercentDiscount && benefit?.percentage
+      ? Number(benefit.percentage) || 0
+      : 0;
+
+  const fixedValue =
+    isFixedDiscount && benefit?.amount
+      ? Number(benefit.amount) || 0
+      : 0;
+
   const subtotalBase = cart.subtotal;
 
-  // Why this selection logic exists
-  // Backend may send final_amount for percentage discounts, but MSI should not change total
+  // Backend may send final_amount for discounts; MSI y cashback no cambian el total
   let subtotalWithPromo;
   if (!appliedPromo) {
     subtotalWithPromo = subtotalBase;
-  } else if (isMSI) {
+  } else if (isMSI || isCashback) {
     subtotalWithPromo = subtotalBase;
   } else if (hasBackendFinal) {
     subtotalWithPromo = backendFinal;
@@ -485,7 +554,7 @@ function CartSummary({ appliedPromo }) {
 
   const total = subtotalWithPromo + shipping;
 
-  const msiMonths = isMSI ? benefit?.meses : null;
+  const msiMonths = isMSI ? benefit?.months ?? benefit?.meses : null;
   const monthlyPayment =
     isMSI && msiMonths ? total / msiMonths : null;
 
@@ -513,7 +582,7 @@ function CartSummary({ appliedPromo }) {
           </span>
         </div>
 
-        {!isMSI && appliedPromo && discountAmount > 0 && (
+        {!isMSI && !isCashback && appliedPromo && discountAmount > 0 && (
           <div className="flex justify-between text-emerald-700">
             <span>Descuento promo</span>
             <span className="font-medium">
@@ -536,23 +605,63 @@ function CartSummary({ appliedPromo }) {
           </span>
         </div>
 
+        {/* Info de MSI */}
         {isMSI && msiMonths && (
           <div className="mt-1 text-xs text-slate-600">
-            Your purchase is eligible for{" "}
+            Tu compra es elegible para{" "}
             <span className="font-semibold">
-              {msiMonths} interest free monthly payments
-              {bankName ? ` with ${bankName}` : ""}
+              {msiMonths} meses sin intereses
+              {bankName ? ` con ${bankName}` : ""}
             </span>
             {monthlyPayment && (
               <>
                 {" "}
-                with approximate installments of{" "}
+                con pagos aproximados de{" "}
                 <span className="font-semibold">
                   <Price value={monthlyPayment} />
                 </span>
+                .
               </>
             )}
-            .
+          </div>
+        )}
+
+        {/* Info de cashback */}
+        {isCashback && cashbackAmount > 0 && (
+          <div className="mt-1 text-xs text-emerald-700">
+            Recibirás un{" "}
+            <span className="font-semibold">
+              cashback de <Price value={cashbackAmount} />
+            </span>
+            {bankName ? ` en tu tarjeta ${bankName}` : ""} después de completar tu compra.
+            El total a pagar en caja se mantiene igual.
+          </div>
+        )}
+
+        {/* Detalle del tipo de descuento (porcentaje vs fijo) */}
+        {appliedPromo && (isPercentDiscount || isFixedDiscount) && (
+          <div className="mt-1 text-xs text-emerald-700">
+            {isPercentDiscount ? (
+              <>
+                Incluye un descuento de{" "}
+                <span className="font-semibold">
+                  {percentValue}%
+                </span>{" "}
+                equivalente a{" "}
+                <span className="font-semibold">
+                  <Price value={discountAmount} />
+                </span>
+                .
+              </>
+            ) : (
+              <>
+                Incluye un descuento directo de{" "}
+                <span className="font-semibold">
+                  <Price value={fixedValue || discountAmount} />
+                </span>{" "}
+                aplicado a tu compra.
+              </>
+            )}
           </div>
         )}
       </div>
