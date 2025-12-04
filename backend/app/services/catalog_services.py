@@ -71,6 +71,7 @@ def _build_filters(
     where_sql = "WHERE " + " AND ".join(clauses) if clauses else ""
     return where_sql, params
 
+
 # LIST PRODUCTS
 def list_products(
     pool,
@@ -99,13 +100,17 @@ def list_products(
         section=section,
     )
 
-    order_by = "ORDER BY prod_name"
-    if sort == "price_asc":
+    # Default: random order (solo cuando sort no está definido)
+    if sort is None:
+        order_by = "ORDER BY DBMS_RANDOM.VALUE"
+    elif sort == "price_asc":
         order_by = "ORDER BY price ASC, prod_name"
     elif sort == "price_desc":
         order_by = "ORDER BY price DESC, prod_name"
     elif sort == "name_desc":
         order_by = "ORDER BY prod_name DESC"
+    else:
+        order_by = "ORDER BY DBMS_RANDOM.VALUE"   # fallback
 
     # SIN PERSONALIZACIÓN
     if user_id is None:
@@ -118,7 +123,7 @@ def list_products(
                 c.stock,
                 c.perceived_colour_master_name,
                 c.section_name,
-                c.image_url,                      -- ✅ AÑADIDO
+                c.image_url,
                 NVL(r.avg_rating, 0)   AS avg_rating,
                 NVL(r.rating_count, 0) AS rating_count
             FROM catalog c
@@ -172,7 +177,7 @@ def list_products(
             p.stock,
             p.perceived_colour_master_name,
             p.section_name,
-            p.image_url,                      -- ✅ AÑADIDO
+            p.image_url,
             NVL(r.avg_rating, 0)   AS avg_rating,
             NVL(r.rating_count, 0) AS rating_count,
             NVL(gender_p.weight,0) * CASE WHEN UPPER(TRIM(p.index_group_name))             = gender_p.key_text THEN :w_gender ELSE 0 END +
@@ -240,6 +245,7 @@ def count_products(
         cur.execute(sql, params)
         return int(cur.fetchone()[0])
 
+
 # GET DISTINCT PRODUCT TYPES
 def get_distinct_product_types(pool) -> list[dict]:
     sql = """
@@ -268,7 +274,7 @@ def get_product(pool, external_article_id: str) -> Optional[Dict]:
             c.detail_desc,
             c.perceived_colour_master_name,
             c.section_name,
-            c.image_url,                  -- ✅ AÑADIDO
+            c.image_url,
             NVL(r.avg_rating, 0)   AS avg_rating,
             NVL(r.rating_count, 0) AS rating_count
         FROM catalog c
@@ -301,6 +307,7 @@ def update_image_url(pool, external_id: str, url: str | None):
             {"url": url, "eid": external_id}
         )
         conn.commit()
+
 
 def list_filter_options(pool):
     sql = """
