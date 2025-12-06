@@ -13,6 +13,16 @@ The React Compiler is enabled on this template. See [this documentation](https:/
 
 Note: This will impact Vite dev & build performances.
 
-## Expanding the ESLint configuration
+## Installation & Setup
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+# Clone repository
+git clone https://github.com/Sebastian-Espinoza-25/TC3007C-AI-Oracle-Challenge.git
+cd TC3007C-AI-Oracle-Challenge/frontend
+
+# Install dependencies
+npm install
+
+# Run the frontend
+npm run dev
+```
